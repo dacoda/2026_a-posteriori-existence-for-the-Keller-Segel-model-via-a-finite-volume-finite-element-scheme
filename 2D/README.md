@@ -4,7 +4,7 @@ This directory contains the code that was used to produce the results from subse
 In the header of each file you can find additional information on what this piece of code does.
 As the name of the folder suggests, we are working in two space dimensions. 
 
-The code was developed with Python 3.8.10. To reproduce the results you can follow the guide in the sequel.
+The code was developed with Python 3.8.10 and depends on numpy 1.26.4 and scipy 1.11.4. To reproduce the results you can follow the guide in the sequel.
 
 1) Clone this git repository into your favorite directory and choose a path, where to store the numerical results and auxiliary files that will be produced on the way. Replace all strings `'put_some_path_here'` occurring in the code by a path that suits you. We recommend using the hotkey `ctrl + f`.
 2) Generate well-centered triangular meshes for different mesh sizes, see different configurations in the code for Table 1 and Table 3, using the file `generate_meshes.py`. 
