@@ -6,7 +6,7 @@ As the name of the folder suggests, we are working in two space dimensions.
 
 The code was developed with Python 3.8.10 and depends on numpy 1.26.4 and scipy 1.11.4. To reproduce the results you can follow the guide in the sequel.
 
-1) Clone this git repository into your favorite directory and choose a path, where to store the numerical results and auxiliary files that will be produced on the way. Replace all strings `'put_some_path_here'` occurring in the code by a path that suits you. We recommend using the hotkey `ctrl + f`.
+1) Clone this git repository into your favorite directory. When running, the code will automatically create a directory `'data'`, where all auxiliary files that will be produced on the way, will be stored.
 2) Generate well-centered triangular meshes for different mesh sizes, see different configurations in the code for Table 1 and Table 3, using the file `generate_meshes.py`. 
 3) Use Algorithm 4.3, implemented in `FVFEscheme.py`, to obtain numerical approximations and the respective interpolation of Morley-type to the solution to the Keller-Segel system.
 4) a) To reproduce the values in Table 1, compute the a posteriori residual estimator (27), see Theorem 6.8, using `residual_estimator.py`, compute the pointswise a posteriori error estimator derived in Appendix A.1 using `Linf_estimator.py` and proceed with 5).
