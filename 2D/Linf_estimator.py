@@ -19,6 +19,16 @@ import numpy as np
 import scipy as sp
 import time
 import pickle
+import os
+
+
+# Get current path
+current_path = '/local/scratch/hoffmann' # os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
 
 
 # Configuration used to generate values in Table 1:
@@ -35,8 +45,12 @@ for index in range(len(spatial)) :
     Nt = temporal[index] # number of time steps, f5T0.02Nt400, f6T0.02Nt800, f7T0.03Nt2400
     maxiter = Nt
 
+    print('fineness: ',fineness)
+    print('Nt: ',Nt)
+
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-    [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
     for i in range(K.num) :
         _, K.simplices[i] = my.orientation(K.el[i], K.simplices[i])
@@ -51,9 +65,11 @@ for index in range(len(spatial)) :
     for n in range(maxiter) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-        [ht,aux_rho,rhs] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,aux_rho,rhs] = pickle.load(open(file_path,'rb'))
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
-        [aux_q0,aux_beta] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+        file_path = os.path.join(folder_path, pickle_name)
+        [aux_q0,aux_beta] = pickle.load(open(file_path,'rb'))
 
         hht.append(ht)
         rrho.append(aux_rho)
@@ -67,7 +83,7 @@ for index in range(len(spatial)) :
     print('numsol data loaded in ',"%.2f" % round(elapsed/60, 2), 'minutes.')
     toc = time.time()
 
-    data = np.loadtxt("2D/triangle4.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("triangle4.csv", delimiter=",", skiprows=1)
     weights_tri = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2])) # physical coordinates
 
@@ -97,17 +113,12 @@ for index in range(len(spatial)) :
         bb = []
         grad_qq = []
         for d in range(2) : # go through components (2D)
-            print('component: ',d)
 
             aux_grad_morley = my.get_grad_morley_val_primal(K,bK,gK,bF,gF,vertex_val[n],betaKE[n])
             grad_morley = np.einsum('tij,i->tj',aux_grad_morley,weights_tri)[:,d]
 
-            print('morley values done.')
-
             q,b = my.getq_FE(K,A,grad_morley)
             grad_q = my.get_gradq(K,grads,q)
-
-            print('FE and grad done')
 
             qq.append(q)
             bb.append(b)
@@ -117,7 +128,8 @@ for index in range(len(spatial)) :
         data.append(qq)
         data.append(bb)
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'qhinfty'+str(n)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         qq_time.append(np.transpose(qq))
         grad_qq_time.append(np.array(grad_qq)) # shape: d,Knum,2
@@ -165,7 +177,7 @@ for index in range(len(spatial)) :
             for i in range(K.num) : 
 
                 hK = np.max(K.diam[i])
-                C3h = 2*hK+16*(hK)**2
+                C3h = 3*hK+16*(hK)**2
 
                 alpha = 4*cSZ(0,2)*C4h*hK**2 + cSZ(0,1)*C3h*hK
                 beta = 4*cTr*(cSZ(1,2)+cSZ(0,2))*C4h*hK + (cSZ(1,1)+cSZ(0,1))*C3h
@@ -201,5 +213,6 @@ for index in range(len(spatial)) :
     print(int0T_a)
 
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'qhinfty.p'
-    pickle.dump(eta_inf_time+qmax,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(eta_inf_time+qmax,open(file_path,'wb')) # store data
 

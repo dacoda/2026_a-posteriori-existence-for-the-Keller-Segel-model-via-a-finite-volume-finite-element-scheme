@@ -20,6 +20,16 @@ import myfun as my
 import numpy as np
 import time
 import pickle
+import os
+
+
+# Get current path
+current_path = '/local/scratch/hoffmann' # os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
 
 
 tic = time.time()
@@ -46,15 +56,18 @@ for index in range(len(spatial)):
     fineness = spatial[index] # number of refinements of mesh before calculating numerical solution
     Nt = temporal[index] # number of time steps
 
+    print('fineness: ',fineness)
+
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-    [K,E,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,E,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
     hats = []
     for i in range(K_dual.num) : 
         hats.append(my.hat(K_dual,i))
     hats = np.asarray(hats)
 
-    data = np.loadtxt("2D/triangle10.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("triangle10.csv", delimiter=",", skiprows=1)
     weights_tri = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2])) # physical coordinates
 
@@ -195,13 +208,17 @@ for index in range(len(spatial)):
     for n in range(Nt) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-        [ht,aux_rho_0] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,aux_rho_0,rhs] = pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
-        [ht,aux_rho_p] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,aux_rho_p,rhs] = pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
-        [vertex_val,betaKF] =  pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [vertex_val,betaKF] =  pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
-        [vertex_val_p,betaKF_p] =  pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [vertex_val_p,betaKF_p] =  pickle.load(open(file_path,'rb')) # load data
        
         if n % 10 == 0 :
             print('n ',n)
@@ -221,7 +238,8 @@ for index in range(len(spatial)):
         # ------------------------------------ COMPUTE C FE VALUE --------------------------------------
         
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
-        [aux_c,aux_v] =  pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [aux_c,aux_v,b] =  pickle.load(open(file_path,'rb')) # load data
 
         filter1 = np.array(K_inter.K_primal)
         filter2 = np.array(K_inter.K_dual, dtype = int)
@@ -268,7 +286,8 @@ for index in range(len(spatial)):
             initialL2 = (np.dot(K.area,weighted_sum))**(1/2)
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_initL2.p'
-            pickle.dump(initialL2,open('put_some_path_here'+pickle_name,'wb')) # store data
+            file_path = os.path.join(folder_path, pickle_name)
+            pickle.dump(initialL2,open(file_path,'wb')) # store data
 
         weighted_sum = np.matmul(morley_primal_0**3,weights_tri) # L3 norm
         morleyL3.append((np.dot(K.area,weighted_sum))**(1/3))
@@ -356,12 +375,9 @@ for index in range(len(spatial)):
 
         else:
 
-            if test == 'manuf' and fineness < 5 :
-                pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
-                [ht,aux_rho_m] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
-            else :
-                pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
-                [ht,aux_rho_m] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+            pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
+            file_path = os.path.join(folder_path, pickle_name)
+            [ht,aux_rho_m,rhs] = pickle.load(open(file_path,'rb')) # load data
 
             # Lemma 6.2 ...
             diff_time1 = ((aux_rho_p[:,None] - aux_rho_0[:,None])/ht - (aux_rho_0[:,None] - aux_rho_m[:,None])/ht)**2
@@ -422,7 +438,9 @@ for index in range(len(spatial)):
     morleyL3 = np.asarray(morleyL3)
 
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_theta.p'
-    pickle.dump(list_time_space,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(list_time_space,open(file_path,'wb')) # store data
 
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_L3.p'
-    pickle.dump(morleyL3,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(morleyL3,open(file_path,'wb')) # store data

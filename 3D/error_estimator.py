@@ -19,6 +19,17 @@ import numpy as np
 import pickle
 import myfun as my
 import time
+import os
+
+
+# Get current path
+current_path = os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
+
 
 tic = time.time()
 
@@ -39,7 +50,8 @@ for index in range(len(spatial)) :
     print('fineness: ',fineness)
 
     pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
-    [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
     print('hx: ',np.max(K.diam))
     hx.append(np.max(K.diam))
@@ -50,7 +62,7 @@ for index in range(len(spatial)) :
 
     hats = np.asarray(hats)
 
-    data = np.loadtxt("3D/tetrahedron14.csv", delimiter=",", skiprows=1)  # for quadrature on tetrahedral elements
+    data = np.loadtxt("tetrahedron14.csv", delimiter=",", skiprows=1)  # for quadrature on tetrahedral elements
     weights_tet = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2],data[:,3])) # physical coordinates
 
@@ -59,7 +71,7 @@ for index in range(len(spatial)) :
     pt_dual, J_dual, v0_dual, grads_dual = my.tritrafo_quad_tet(K_dual.el, xi_ref)
     pt_inter, J_inter, v0_inter, grads_inter = my.tritrafo_quad_tet(K_inter.el, xi_ref)
 
-    data = np.loadtxt("3D/triangle12.csv", delimiter=",", skiprows=1) # for quadrature on triangular faces
+    data = np.loadtxt("triangle12.csv", delimiter=",", skiprows=1) # for quadrature on triangular faces
     weights2D = data[:,-1]
     points_tri = np.column_stack((data[:,1],data[:,2]))
 
@@ -159,13 +171,17 @@ for index in range(len(spatial)) :
     for n in range(Nt) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-        [ht,aux_rho_0] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,aux_rho_0] = pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
-        [ht,aux_rho_p] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,aux_rho_p] = pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
-        [vertex_val,betaKF] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [vertex_val,betaKF] = pickle.load(open(file_path,'rb')) # load data
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
-        [vertex_val_p,betaKF_p] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [vertex_val_p,betaKF_p] = pickle.load(open(file_path,'rb')) # load data
 
         if n % 50 == 0 :
             print('time ',n*ht)
@@ -185,7 +201,8 @@ for index in range(len(spatial)) :
         # ------------------------------------ COMPUTE C FE VALUE --------------------------------------
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
-        [aux_c,aux_v] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [aux_c,aux_v] = pickle.load(open(file_path,'rb')) # load data
         
         filter1 = np.array(K_inter.K_primal)
         filter2 = np.array(K_inter.K_dual, dtype = int)
@@ -306,7 +323,8 @@ for index in range(len(spatial)) :
         else:
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
-            [ht,aux_rho_m] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+            file_path = os.path.join(folder_path, pickle_name)
+            [ht,aux_rho_m] = pickle.load(open(file_path,'rb')) # load data
 
             # Lemma 6.2 ...
             diff_time1 = ((aux_rho_p[:,None] - aux_rho_0[:,None])/ht - (aux_rho_0[:,None] - aux_rho_m[:,None])/ht)**2
@@ -371,9 +389,9 @@ for index in range(len(spatial)) :
 
     print('estimator :',estimator)
 
-    if fineness > 0 : # generate estimated order of convergence for Table 2.
+    if fineness > spatial[0] : # generate estimated order of convergence for Table 2.
         eoc = []
-        for i in range(fineness) :
+        for i in range(fineness-spatial[0]) :
             eoc.append((np.log((estimator[i])/(estimator[i+1])))/(np.log((hx[i])/(hx[i+1]))))
 
         print('eoc: ',eoc)

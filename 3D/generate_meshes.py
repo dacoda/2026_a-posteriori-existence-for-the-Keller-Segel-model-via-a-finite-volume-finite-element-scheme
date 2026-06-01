@@ -1,10 +1,3 @@
-import myfun as my
-import numpy as np
-import time
-import pickle
-from matplotlib import pyplot as plt
-
-
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # This script computes the primal mesh and the dual mesh for the unit cube [0,1)^3 usable in Algorithm 4.3.
@@ -12,10 +5,30 @@ from matplotlib import pyplot as plt
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+import myfun as my
+import numpy as np
+import time
+import pickle
+from matplotlib import pyplot as plt
+import os
+
+
+
+# Get current path
+current_path = os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
+
+
+
 tic = time.time()
 toc = time.time()
 
-for index in range(1,7) :
+for index in range(2,7) :
 
     fineness = index # number of refinements of mesh before calculating numerical solution
     print('------------------- fineness '+str(fineness)+' --------------------')
@@ -53,5 +66,6 @@ for index in range(1,7) :
     else : 
         data = [K,F,K_dual,K_inter]
         pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 

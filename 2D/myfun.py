@@ -405,6 +405,17 @@ def unitouternormal(K,E) :
 
     return normal
 
+def diam(K) :
+    indices = [[1,2],[0,2],[0,1]]
+    val_max = 0
+    for j in range(3) :
+        E = K[indices[j]]
+        val = np.linalg.norm(E[1]-E[0])
+        if val > val_max :
+            val_max = val
+
+    return val_max
+
 
 # ------------------------------------------------------------------------------------------
 
@@ -1025,7 +1036,7 @@ def assemble_FE_matrix(K_dual):
 
     sparseA = sparseA_diff + sparseA_reac
 
-    return sparseA
+    return [sparseA,sparseA_reac]
 
 def assemble_FV_matrix(ht,K,eps) :
     row = []
@@ -1098,6 +1109,31 @@ def get_gradc(K_dual,c) :
         val.append(np.matmul(np.transpose(K_dual.grads[i]),c[K_dual.pt_ident[K_dual.simplices[i]]]))
 
     return np.array(val)
+
+
+def get_c_val(cc, hats_loc, points, dual_index, fp_sorted, order, sub_index_sorted, N_primal, N_sub):
+
+    N_pts = len(points)
+
+    points_aff = np.hstack([points, np.ones((N_pts, 1), dtype=points.dtype)])  # (N_pts, 3)
+
+    #  Evaluate per-intersection values 
+    # hats_loc: (N_inter, 3, 3), points_aff.T: (3, N_pts)
+    phi = np.einsum('ijk,kp->ijp', hats_loc, points_aff.T)  # (N_inter, 3, N_pts)
+
+    # Select coefficients for intersections
+    cc_loc = cc[dual_index]  # (N_inter, 3)
+
+    # Dot product over barycentric axis
+    val_sorted = np.einsum('ij,ijp->ip', cc_loc, phi)  # (N_inter, N_pts)
+
+    # Group by primal element and sub-element 
+    val_sorted = val_sorted[order]
+
+    output = np.zeros((N_primal, N_sub, N_pts), dtype=val_sorted.dtype)
+    output[fp_sorted, sub_index_sorted, :] = val_sorted
+
+    return output
 
 
 def finitevolumescheme_rho_expl(u_old,ht,K,vv,f,sparseA,M) :
@@ -1860,9 +1896,9 @@ def assemble_FE_matrix_q(K):
 
     sparseA = sparseA_diff + sparseA_reac
 
-    return [sparseA,gradients]
+    return [sparseA,gradients,sparseA_reac]
 
-def getq_FE(K,sparseA,grad_morley,d) :
+def getq_FE(K,sparseA,grad_morley) :
 
     b = np.zeros(len(K.pt_reduced))
 
@@ -1873,7 +1909,7 @@ def getq_FE(K,sparseA,grad_morley,d) :
             
             b[K.pt_ident[K.simplices[i][m]]] += 1/3*vol_K*grad_morley[i] # exact quadrature
            
-    q, content = sp.sparse.linalg.cg(sparseA,b,tol=10**-12)
+    q, content = sp.sparse.linalg.cg(sparseA,b)
 
     return q,b
 

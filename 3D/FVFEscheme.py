@@ -2,7 +2,16 @@ import myfun as my
 import numpy as np
 import time
 import pickle
-# import pyamg
+import os
+
+
+# Get current path
+current_path = os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
 
 
 tic = time.time()
@@ -23,7 +32,8 @@ for index in range(len(spatial)) :
     maxiter = Nt
 
     pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
-    [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
     if test == 'manuf':
     # MANUFACTURED SOLUTION WITH T = 1
@@ -101,7 +111,8 @@ for index in range(len(spatial)) :
 
     data = [K,F,K_dual,K_inter]
     pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     elapsed = time.time() - toc
     print('FE matrix assembled in ',"%.2f" % round(elapsed/60, 2), 'minutes.') 
@@ -121,7 +132,8 @@ for index in range(len(spatial)) :
     data.append(ht) # time step size Delta t^n := t^{n+1} - t^n
     data.append(rho[0][:])
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(0)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     # GET COEFFICIENTS FOR MORLEY/LINEAR INTERPOLATION AT TIME "n = -1":
     FKED = my.getinterpolationRHS(K,rho[0][:]) 
@@ -137,7 +149,8 @@ for index in range(len(spatial)) :
     data.append(vertex_val)
     data.append(betaKF)
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(0)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     # calculate c0 with rho0 as right-hand side 
     c0 = my.getc_FE(rho[0][:],lambda x : g(x,0),K_dual,A) #,M) 
@@ -161,7 +174,8 @@ for index in range(len(spatial)) :
         data.append(vv)
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         if np.min(rho[n][:]) < 0 :
             print('Error: Negative densities detected.')
@@ -180,7 +194,8 @@ for index in range(len(spatial)) :
         data.append(ht) # time step size Delta t^n := t^{n+1} - t^n
         data.append(rho[n+1][:])
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         # GET COEFFICIENTS FOR MORLEY/LINEAR INTERPOLATION :
         FKED = my.getinterpolationRHS(K,rho[n+1][:]) 
@@ -195,7 +210,8 @@ for index in range(len(spatial)) :
         data.append(vertex_val)
         data.append(betaKF)
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
         
         toc = time.time()
         # GET CHEMICAL DENISTY
@@ -211,7 +227,8 @@ for index in range(len(spatial)) :
             data.append(cc[n+1][:])
             data.append(vv)
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n+1)+'.p'
-            pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+            file_path = os.path.join(folder_path, pickle_name)
+            pickle.dump(data,open(file_path,'wb')) # store data
 
     progress = 100
     print("%.2f" % progress, 'procent of progress made.')

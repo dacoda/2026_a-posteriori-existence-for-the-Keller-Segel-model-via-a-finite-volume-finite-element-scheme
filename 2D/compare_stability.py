@@ -12,6 +12,16 @@ import numpy as np
 import scipy as sp
 import myfun as my
 import pickle
+import os
+
+
+# Get current path
+current_path = '/local/scratch/hoffmann' # os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
 
 
 # Configuration used to generate values in Table 1:
@@ -21,12 +31,11 @@ spatial = [4,5,6,7]
 temporal = [25,50,200,800]
 TT = [0.0005,0.0005,0.001,0.001]
 
+times_gengron = []
+times_loc = []
 for stability in ['genGronwall','loc-in-time']:
 
     print(stability)
-
-    times_gengron = []
-    times_loc = []
     for index in range(len(spatial)) :
         
         fineness = spatial[index] # number of refinements of mesh before calculating numerical solution
@@ -38,12 +47,13 @@ for stability in ['genGronwall','loc-in-time']:
 
         # DIFFUSION DOMINATED REGIME
         def rho0(x) :
-            val = 1.3*np.exp(-25*(x[0]-1/2)**2-25*(x[1]-1/2)**2)
+            val = np.cos(2*np.pi*x[0])*np.cos(2*np.pi*x[1])+1 
             return val
 
 
         pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-        [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+        file_path = os.path.join(folder_path, pickle_name)
+        [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
         K_el = K.points[K.simplices]
 
@@ -66,16 +76,20 @@ for stability in ['genGronwall','loc-in-time']:
         B2 = 864/125*C_S**6*C_ell**4
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_initL2.p'
-        initialL2 = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        initialL2 = pickle.load(open(file_path,'rb')) # load data
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_theta.p'
-        theta_R = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # array in time, one value per time step
+        file_path = os.path.join(folder_path, pickle_name)
+        theta_R = pickle.load(open(file_path,'rb')) # array in time, one value per time step
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_L3.p'
-        morleyL3 = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # array in time, one value per time step
+        file_path = os.path.join(folder_path, pickle_name)
+        morleyL3 = pickle.load(open(file_path,'rb')) # array in time, one value per time step
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'qhinfty.p'
-        qhinfty = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # array in time, one value per time step
+        file_path = os.path.join(folder_path, pickle_name)
+        qhinfty = pickle.load(open(file_path,'rb')) # array in time, one value per time step
 
 
         eps = np.finfo(float).eps # set machine epsilon
@@ -97,7 +111,8 @@ for stability in ['genGronwall','loc-in-time']:
 
         n = 0
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-        [ht,rhoFV,rhs] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,rhoFV,rhs] = pickle.load(open(file_path,'rb')) # load data
 
         FV_matrix = my.assemble_FV_matrix(ht,K,1)
         eigvals, eigvecs = sp.sparse.linalg.eigsh(FV_matrix, k=1, which='LM')
@@ -133,16 +148,20 @@ for stability in ['genGronwall','loc-in-time']:
 
         for n in range(maxiter) : # time steps
 
-            C8 = ((936*K.num + 4)*(n+1)+6)*eps
+            C8 = (936*K.num + 4)*(n+1)+6
             
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-            [ht,rhoFV,rhs] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+            file_path = os.path.join(folder_path, pickle_name)
+            [ht,rhoFV,rhs] = pickle.load(open(file_path,'rb')) # load data
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
-            [cc,aux_v,b] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+            file_path = os.path.join(folder_path, pickle_name)
+            [cc,aux_v,b] = pickle.load(open(file_path,'rb')) # load data
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
-            [vertex_val,beta] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+            file_path = os.path.join(folder_path, pickle_name)
+            [vertex_val,beta] = pickle.load(open(file_path,'rb')) # load data
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'qhinfty'+str(n)+'.p'
-            [qq,bb] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # store data
+            file_path = os.path.join(folder_path, pickle_name)
+            [qq,bb] = pickle.load(open(file_path,'rb')) # store data
 
             FKED = my.getinterpolationRHS(K,rhoFV) 
 
@@ -156,10 +175,10 @@ for stability in ['genGronwall','loc-in-time']:
             C3b = 6*K.num*np.max(maxFq0)
             C3 = C3a + C3b
 
-            thetaFE = Csz*np.sqrt(((1-2*C4*eps)/smallestEV_M)/(1-(2-largestEV_M/smallestEV_M)*C4*eps))*(((C5*eps)/(1-2*C5*eps)+tol)*np.linalg.norm(b) + ((C6*eps)/(1-2*C6*eps))*largestEV_FE*np.linalg.norm(cc))
+            thetaFE = Csz*np.sqrt(((1-2*C4*eps)/smallestEV_M)/(1-(2+6**(3/2)*largestEV_M/smallestEV_M)*C4*eps))*(((C5*eps)/(1-2*C5*eps)+tol)*np.linalg.norm(b) + ((C6*eps)/(1-2*C6*eps))*largestEV_FE*np.linalg.norm(cc))
             thetaFV = 1/ht*np.max(K.area)**(1/2)*(((C1*eps)/(1-2*C1*eps)+tol)*np.linalg.norm(rhs)+((C2*eps)/(1-2*C2*eps))*largestEV_FV*np.linalg.norm(rhoFV))
             algebraic = 12*C3*C_S*eps*(np.sum(1/K.area))**(1/6) + thetaFE + thetaFV 
-            thetaFEq = Csz/(2*np.sqrt(np.pi))*np.sqrt(((1-2*C10*eps)/smallestEV_M)/(1-(2-largestEV_Mq/smallestEV_Mq)*C10*eps))*(((C11*eps)/(1-2*C11*eps)+tol)*np.linalg.norm(b) + ((C12*eps)/(1-2*C12*eps))*largestEV_FEq*(np.linalg.norm(qq[0])+np.linalg.norm(qq[1])))
+            thetaFEq = Csz/(2*np.sqrt(np.pi))*np.sqrt(((1-2*C10*eps)/smallestEV_M)/(1-(2+6**(3/2)*largestEV_Mq/smallestEV_Mq)*C10*eps))*(((C11*eps)/(1-2*C11*eps)+tol)*np.linalg.norm(b) + ((C12*eps)/(1-2*C12*eps))*largestEV_FEq*(np.linalg.norm(qq[0])+np.linalg.norm(qq[1])))
 
 
             if stability == 'genGronwall' :

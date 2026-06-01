@@ -18,6 +18,17 @@
 import numpy as np
 import myfun as my
 import pickle
+import os
+
+
+# Get current path
+current_path = os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
+
 
 # Configuration used to generate values in Table 3:
 test = 'manuf' #set test case
@@ -47,12 +58,13 @@ for index in range(len(spatial)) :
     Nt = temporal[index]
 
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-    [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
     print('----- fineness '+str(fineness)+' -----')
     print('Number primal elements : ',K.num)
 
-    data = np.loadtxt("2D/triangle10.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("triangle10.csv", delimiter=",", skiprows=1)
     weights_tet = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2]))
 
@@ -93,7 +105,8 @@ for index in range(len(spatial)) :
             print('time: ',n*ht)
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-        [ht,rho_0] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load data
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht,rho_0,rhs] = pickle.load(open(file_path,'rb')) # load data
 
         if n > 0:
             rho_0 = rho_p
@@ -102,17 +115,21 @@ for index in range(len(spatial)) :
         else :
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
-            [ht_0,rho_0] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+            file_path = os.path.join(folder_path, pickle_name)
+            [ht_0,rho_0,rhs] = pickle.load(open(file_path,'rb'))
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
-            [vertex_val_0,betaKF_0] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+            file_path = os.path.join(folder_path, pickle_name)
+            [vertex_val_0,betaKF_0] = pickle.load(open(file_path,'rb'))
             
             vertex_val_0 = np.asarray(vertex_val_0)
             betaKF_0 = np.asarray(betaKF_0)
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
-        [ht_p,rho_p] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+        file_path = os.path.join(folder_path, pickle_name)
+        [ht_p,rho_p,rhs] = pickle.load(open(file_path,'rb'))
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
-        [vertex_val_p,betaKF_p] = pickle.load(open('put_some_path_here'+pickle_name,'rb'))
+        file_path = os.path.join(folder_path, pickle_name)
+        [vertex_val_p,betaKF_p] = pickle.load(open(file_path,'rb'))
     
         t_mid = 0.5*(n*ht+(n+1)*ht)
 

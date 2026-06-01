@@ -23,13 +23,17 @@ class primal_mesh :
         
         order = np.argsort(simplices,axis=1)
 
+        # Use advanced indexing to apply permutation to simplices
         rows = np.arange(simplices.shape[0])[:, None]  # shape (M,1)
         self.simplices = simplices[rows, order]       # shape (M,4)
 
-        # apply same permutation to neighbors
+        # Apply same permutation to neighbors
         self.neighbors = neighbors[rows, order]
 
         K_el = self.points[self.simplices]
+
+        # self.neighbors = neighbors
+
         self.num = len(self.simplices)  
 
         auxCC = np.zeros((self.num, 3))
@@ -43,7 +47,7 @@ class primal_mesh :
 
         self.CC = np.array(auxCC)
 
-        # tetrahedron volumes 
+        # Vectorized tetrahedron volumes 
         A = K_el[:, 0]
         B = K_el[:, 1]
         C = K_el[:, 2]
@@ -52,7 +56,7 @@ class primal_mesh :
         vol = np.abs(np.einsum("ij,ij->i",np.cross(B - A, C - A),D - A)) / 6.0
         self.area = vol
 
-        # diameter
+        #  Vectorized diameter computation 
         edge_pairs = np.array([[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]])
 
         edges = K_el[:, edge_pairs[:,0]] - K_el[:, edge_pairs[:,1]]
@@ -60,18 +64,19 @@ class primal_mesh :
 
         self.diam = edge_lengths.max(axis=1)
 
-        # build adjacency 
+
+        #  Build adjacency 
         pt_ident = np.asarray(self.pt_ident)
         adjacent = [[] for _ in range(len(self.pt_reduced))]
 
-        # precompute simplex membership map
+        # Precompute simplex membership map
         vertex_to_elements = [[] for _ in range(len(self.points))]
 
         for elem_id, tet in enumerate(self.simplices):
             for v in tet:
                 vertex_to_elements[v].append(elem_id)
 
-        # assign reduced-point adjacency
+        # Assign reduced-point adjacency
         for reduced_id in range(len(self.pt_reduced)):
             original_vertices = np.where(pt_ident == reduced_id)[0]
             neigh = set()
@@ -81,7 +86,7 @@ class primal_mesh :
 
         self.adjacent = adjacent
 
-        # compute hat basis coefficients 
+        #  Compute hat basis coefficients 
         self.hat = [hat(self, i) for i in range(self.num)]
 
         self.TinK = [[] for i in range(self.num)]
@@ -179,7 +184,7 @@ class faces_of_element :
         # Dual placeholders
         self.dual = -np.ones((N,4,3))
         self.dual_area = -np.ones((N,4,3))
-   
+    
 class faces :
 
     def __init__(self,K):
@@ -250,6 +255,49 @@ class faces :
         self.is_interior = aux_interior[:indexF]
 
 
+def find_neighbors(pindex, simplices):
+
+    neighborstri = []
+    i = -1
+    for simplex in simplices:
+        i += 1
+        if pindex in simplex:
+            neighborstri.append(i)
+
+    return neighborstri
+
+def diam(K) :
+
+    edge_pairs = np.array([[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]])
+
+    edges = K[edge_pairs[:,0]] - K[edge_pairs[:,1]]
+    edge_lengths = np.linalg.norm(edges)
+
+    return np.max(edge_lengths)
+
+
+def tetraCoord(A,B,C,D):
+
+  v1 = B-A ; v2 = C-A ; v3 = D-A
+  mat = np.array((v1,v2,v3)).T
+  # mat is 3x3 here
+  M1 = np.linalg.inv(mat)
+  return(M1)
+
+def pointInside(el,p):
+  # Find the transform matrix from orthogonal to tetrahedron system
+  v1 = el[0]
+  v2 = el[1]
+  v3 = el[2]
+  v4 = el[3]
+
+  M1=tetraCoord(v1,v2,v3,v4)
+  # apply the transform to P (v1 is the origin)
+  newp = M1.dot(p-v1)
+  # perform test
+  return (np.all(newp>=0) and np.all(newp <=1) and np.sum(newp)<=1)
+
+
 def getmesh(fineness) :
 
     a = 3/4
@@ -283,7 +331,6 @@ def getmesh(fineness) :
     shifts = generate_translations(fineness) * const
     # Decide which point set to use
     base = points_all if fineness == 0 else points_less
-    # Broadcast translation in one shot
 
     points = (base[:, None, :] + shifts[None, :, :]).reshape(-1, 3)
 
@@ -308,7 +355,7 @@ def getmesh(fineness) :
     edit_neighbors = set()
   
 
-    #  Classify tetrahedra 
+    # Classify tetrahedra
     for i in range(len(el)): # go through all elements including elements that we need to remove
         tet = el[i]
 
@@ -331,12 +378,12 @@ def getmesh(fineness) :
             keep[i] = False
             edit_neighbors.add(i)
 
-    #  Apply mask once 
+    # Apply mask once 
     simplices = simplices[keep]
     el = el[keep]
     neighbors = neighbors[keep]
 
-    #  Build old to new index map 
+    # Build old→new index map
     old_ids = np.where(keep)[0]
     for new_id, old_id in enumerate(old_ids):
         i2j[old_id] = new_id
@@ -398,10 +445,6 @@ def getmesh(fineness) :
 
                     neighbors[j][k] = i2j[neighbors[j][k]]
 
-
-    print('num. tet: ',len(el))
-    print('num. pts: ',len(points))
-
     pt_ident = []
     pt_reduced = []
     for i in range(len(points)) :
@@ -427,8 +470,10 @@ def getmesh(fineness) :
             pt_ident.append(j)
         else :
             pt_reduced.append(pt)
+            pt_ident.append(len(pt_reduced)-1)
  
     return [points,pt_reduced,pt_ident,simplices,neighbors]
+
 
 def generate_translations(n):
     grid = np.stack(np.meshgrid(
@@ -438,6 +483,16 @@ def generate_translations(n):
         indexing="ij"
     ), axis=-1).reshape(-1, 3)
     return grid
+
+
+def linear_search(list, x):
+    # basic line search algorithm
+
+    for i in range(len(list)):
+        if np.abs(list[i][0] - x[0]) < 10**-8 and np.abs(list[i][1] - x[1]) < 10**-8 and np.abs(list[i][2] - x[2]) < 10**-8:
+            return i
+    return -1
+
 
 def check_coplanar(el): 
 
@@ -461,41 +516,16 @@ def check_coplanar(el):
      
     # equation of plane is: a*x + b*y + c*z = 0 #
      
-    # checking if the 4th point satisfies the above equation
+    # checking if the 4th point satisfies
+    # the above equation
     if np.abs(a * x4 + b * y4 + c * z4 + d) < 10**-8:
+        # ax = plt.axes(projection='3d')
+        # plot_element(ax, el,'b')
+        # plt.show()
         return 1
    
     else:
         return 0
-    
-def pointInside(el,p):
-  # Find the transform matrix from orthogonal to tetrahedron system
-  v1 = el[0]
-  v2 = el[1]
-  v3 = el[2]
-  v4 = el[3]
-
-  M1=tetraCoord(v1,v2,v3,v4)
-  # apply the transform to P (v1 is origin)
-  newp = M1.dot(p-v1)
-  # perform test
-  return (np.all(newp>=0) and np.all(newp <=1) and np.sum(newp)<=1)
-
-def tetraCoord(A,B,C,D):
-
-  v1 = B-A ; v2 = C-A ; v3 = D-A
-  mat = np.array((v1,v2,v3)).T
-  # mat is 3x3 here
-  M1 = np.linalg.inv(mat)
-  return(M1)
-
-def linear_search(list, x):
-    # basic line search algorithm
-
-    for i in range(len(list)):
-        if np.abs(list[i][0] - x[0]) < 10**-8 and np.abs(list[i][1] - x[1]) < 10**-8 and np.abs(list[i][2] - x[2]) < 10**-8:
-            return i
-    return -1
 
 
 def hat(K,k) :
@@ -527,16 +557,34 @@ def unitouternormal(K,F) :
     lengthplus = np.linalg.norm((F[0]+F[1]+F[2])/3+normal-center)
     lengthminus = np.linalg.norm((F[0]+F[1]+F[2])/3-normal-center)
 
-    if lengthplus<lengthminus : # flip vector
+    if lengthplus<lengthminus :
         normal = -normal
 
     return normal
 
+def tritrafo(K,L,pt):
+#    Affine map from tetrahedron K to L, transform point pt. Returns transformed point and Jacobian matrix J (3x3).
+
+    K = np.array(K)
+    L = np.array(L)
+    
+    # Linear part
+    J = np.column_stack((L[1]-L[0], L[2]-L[0], L[3]-L[0])) @ \
+        np.linalg.inv(np.column_stack((K[1]-K[0], K[2]-K[0], K[3]-K[0])))
+    
+    # Translation
+    b = L[0] - J @ K[0]
+    
+    ptL = np.asarray(J @ pt + b)
+    return ptL, J
+
 def circumcenter2D(el) :
+
     A = el[0]
     B = el[1]
     C = el[2]
 
+    # https://math.stackexchange.com/questions/2658318/how-to-find-the-circumcenter-of-a-triangle-and-the-length-of-the-corresponding-r
     aux1 = - (A[1]-B[1])*(C[2]-A[2]) + (C[1]-A[1])*(A[2]-B[2])
     aux2 = (A[0]-B[0])*(C[2]-A[2]) - (C[0]-A[0])*(A[2]-B[2])
     aux3 = - (A[0]-B[0])*(C[1]-A[1]) + (C[0]-A[0])*(A[1]-B[1])
@@ -555,6 +603,181 @@ def circumcenter2D(el) :
 
 
 # ------------------------------------------------------------------------------------------
+
+# class dual_mesh :
+#     def __init__(self,K,F) :
+
+#         # Dual points = primal points + element circumcenters
+#         self.points = np.vstack((np.array(K.points), np.array(K.CC)))
+#         self.pt_dual_reduced = np.vstack((np.array(K.pt_reduced), np.array(K.CC)))
+#         self.pt_ident = np.array(K.pt_ident + [len(K.pt_reduced)+i for i in range(K.num)])
+
+#         self.simplices = []
+#         self.el = []
+#         self.primal_ind = []
+#         self.primal_area = []
+
+#         degenerate = 0
+#         index_Kdual = 0
+
+#         # Precompute midpoint indices for edges of a face
+#         edge_indices = np.array([[1,2],[0,2],[0,1]])
+#         for i in range(F.num):
+#             i1,j1 = F.indKs[i][0]
+#             i1,j1 = int(i1), int(j1)
+#             CCi1 = K.CC[i1]
+#             CCF = K.F.CC[i1][j1]
+                       
+#             if F.is_interior[i] : # either 1 (interior face) or 0 (boundary face), always 1 for periodic boundary
+
+#                 i2,j2 = F.indKs[i][1]
+#                 i2,j2 = int(i2), int(j2)
+#                 CCi2 = K.CC[i2]     
+
+#                 for k in range(3):  # three dual elements per face (one per edge)
+#                     e0,e1 = K.F.el[i1][j1][edge_indices[k]]
+#                     midk = 0.5*(e0+e1)
+#                     pt = get_pt(CCi2, midk) 
+
+#                     el = np.array([e0,e1,CCi1,pt])
+#                     i_el = [K.F.simplices[i1][j1][edge_indices[k][0]],
+#                             K.F.simplices[i1][j1][edge_indices[k][1]],
+#                             len(K.points)+i1, len(K.points)+i2]
+
+#                     if check_coplanar(el) or np.linalg.norm(CCi1-CCi2)<1e-8:
+#                         degenerate += 1
+#                         continue
+
+#                     el, i_el = orientation(el,i_el)
+     
+#                     self.el.append(el)
+#                     self.simplices.append(i_el)
+
+#                     # Compute area and volumes
+#                     S = np.cross(el[1]-el[0], CCF-el[0])
+#                     area1 = np.linalg.norm(S)/2
+#                     K.F.dual[i1][j1][k] = index_Kdual
+#                     K.F.dual_area[i1][j1][k] = area1
+#                     K.F.dual[i2][j2][k] = index_Kdual
+#                     K.F.dual_area[i2][j2][k] = area1
+
+#                     vol1 = np.abs(np.dot(np.cross(el[1]-el[0], el[2]-el[0]), CCF-el[0]))/6
+#                     vol2 = np.abs(np.dot(np.cross(el[1]-el[0], el[3]-el[0]), CCF-el[0]))/6
+
+#                     self.primal_ind.append([i1,i2])
+#                     self.primal_area.append([vol1,vol2])
+
+#                     index_Kdual += 1
+#             else:
+#                 print("Warning: periodic boundary dual mesh fails!")
+        
+     
+#         if degenerate > 0 :
+#             print("Warning: The dual mesh contains %i degenerate element(s)." %degenerate)
+#             self.quality = degenerate
+#         else :
+#             print("The dual mesh DOES NOT contain degenerate elements.")
+#             self.quality = 0
+
+#         self.num = len(self.el)
+#         self.el = np.asarray(self.el)
+#         self.simplices = np.asarray(self.simplices)
+#         self.primal_ind = np.asarray(self.primal_ind)
+#         self.primal_area = np.asarray(self.primal_area)
+
+#         # Compute diameters
+#         self.diam = np.linalg.norm(self.el[:,0]-self.el[:,1], axis=1)
+#         self.gradients = []
+#         self.vol = []
+
+#         self.neighbors = np.asarray(compute_face_neighbors(self.el))
+
+#         indexF = 0
+#         # Use dictionary for fast face lookup
+#         face_dict = {}
+#         aux_el = self.el
+
+#         indices = np.array([
+#         [0, 1, 2],
+#         [0, 1, 3],
+#         [0, 2, 3],
+#         [1, 2, 3]
+#                 ])
+        
+#         max_faces = 2*self.num
+
+#         # Preallocate arrays
+#         aux_el = np.zeros((max_faces, 3, 3))
+#         aux_indKs = -np.ones((max_faces, 2), dtype=int)
+
+#         for i in range(self.num):
+#             neighbors = self.neighbors[i]
+#             for j in range(4):
+#                 ni = neighbors[j]
+#                 face_key = tuple(sorted([i, ni]))  # unique key for face
+
+#                 if ni >= 0:  # interior face
+#                     if face_key in face_dict:
+#                         idx = face_dict[face_key]
+#                         # Replace face if on right side
+#                         if aux_el[idx][0,0] > 0.999999 and aux_el[idx][1,0] > 0.999999 and aux_el[idx][2,0] > 0.999999:
+#                             # Swap previous with current
+#                             aux_el[idx] =  self.el[i][indices[j]]
+#                             aux_indKs[idx][1] = aux_indKs[idx][0].copy()
+#                             aux_indKs[idx][0] = i
+#                         else:
+#                             aux_indKs[idx][1] = i
+#                     else:
+#                         # New interior face
+#                         aux_el[indexF] = self.el[i][indices[j]]
+#                         aux_indKs[indexF][0] = i
+#                         face_dict[face_key] = indexF
+#                         indexF += 1
+#                 else:  # boundary face (periodic)
+#                     aux_el[indexF] =  self.el[i][indices[j]]
+#                     aux_indKs[indexF][0] = i
+#                     face_dict[face_key] = indexF
+#                     indexF += 1
+#                     print("Warning: periodic boundary face encountered")
+
+#         self.face_el = np.asarray(aux_el[:indexF])
+#         self.face_to_tet = np.asarray(aux_indKs[:indexF])
+  
+#         v0 = self.face_el[:,0]
+#         v1 = self.face_el[:,1]
+#         v2 = self.face_el[:,2]
+
+#         cross = np.cross(v1 - v0, v2 - v0)   # shape (N_faces, 3)
+
+#         # face areas: 1/2 * |cross|
+#         face_areas = 0.5 * np.linalg.norm(cross, axis=1)
+
+#         # Unit normals
+#         face_normals = cross / np.linalg.norm(cross, axis=1, keepdims=True)
+
+#         # Face centers
+#         face_centers = (v0 + v1 + v2)/3
+
+#         # Tet centers of + tetrahedra
+#         tet_centers = np.mean(self.points[self.simplices], axis=1)
+#         plus_centers = tet_centers[self.face_to_tet[:,0]]
+
+#         # Flip normals to point from + tet to − tet
+#         flip = np.sum(face_normals * (face_centers - plus_centers), axis=1) < 0
+#         face_normals[flip] *= -1
+
+#         # Edge lengths per face
+#         e01 = np.linalg.norm(v1 - v0, axis=1)
+#         e12 = np.linalg.norm(v2 - v1, axis=1)
+#         e20 = np.linalg.norm(v0 - v2, axis=1)
+
+#         # Diameter = max edge length of triangular face
+#         face_diameter = np.maximum.reduce([e01, e12, e20])
+
+#         self.face_normals = face_normals
+#         self.face_areas = 0.5 * face_areas
+#         self.face_diam = face_diameter
+#         self.num_faces = len(face_areas)
 
 class dual_mesh :
     def __init__(self,K,F) :
@@ -644,6 +867,7 @@ class dual_mesh :
 
         self.neighbors = np.asarray(compute_face_neighbors(self.el))
 
+
         indexF = 0
         # Use dictionary for fast face lookup
         face_dict = {}
@@ -695,13 +919,15 @@ class dual_mesh :
         self.face_el = np.asarray(aux_el[:indexF])
         self.face_to_tet = np.asarray(aux_indKs[:indexF])
   
+
         v0 = self.face_el[:,0]
         v1 = self.face_el[:,1]
         v2 = self.face_el[:,2]
 
+        # Raw cross product (used to compute both area and normal)
         cross = np.cross(v1 - v0, v2 - v0)   # shape (N_faces, 3)
 
-        # face areas: 1/2 * |cross|
+        # Face areas: 1/2 * ||cross||
         face_areas = 0.5 * np.linalg.norm(cross, axis=1)
 
         # Unit normals
@@ -730,6 +956,7 @@ class dual_mesh :
         self.face_areas = 0.5 * face_areas
         self.face_diam = face_diameter
         self.num_faces = len(face_areas)
+
 
 
 def get_pt(x,ref) :
@@ -1316,6 +1543,9 @@ def assemble_FE_matrix(K_dual): # see Fig. 3.14. in Bartels2015
 
     return sparseA
 
+
+
+
 def assemble_FV_matrix(ht,K,eps) :
 
     row = []
@@ -1390,6 +1620,25 @@ def get_gradc(K_dual,c) :
     
     return np.array(val) # constant gradient on each element
 
+
+def get_c_val(cc, hats_loc, points, dual_index, fp_sorted, order, sub_index_sorted, N_primal, N_sub):
+
+    N_pts = len(points)
+
+    points_aff = np.hstack([points, np.ones((N_pts,1), dtype=points.dtype)])  # (N_pts,4)
+
+    #  evaluate per-intersection values 
+    phi = np.einsum('ijk,kp->ijp', hats_loc, points_aff.T)  # (N_inter,4,N_pts)
+    cc_loc = cc[dual_index]                             # (N_inter,4)
+    val_sorted = np.einsum('ij,ijp->ip', cc_loc, phi)  # (N_inter,N_pts)
+
+    #  group by primal element 
+    val_sorted = val_sorted[order]
+
+    output = np.zeros((N_primal, N_sub, N_pts), dtype=val_sorted.dtype)
+    output[fp_sorted, sub_index_sorted, :] = val_sorted
+
+    return output
 
 def finitevolumescheme_rho_expl(u_old,ht,K,vv,f,sparseA) : # explicit euler for full advection term
 

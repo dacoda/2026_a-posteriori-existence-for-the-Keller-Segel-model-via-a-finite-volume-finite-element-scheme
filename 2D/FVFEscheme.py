@@ -2,14 +2,25 @@ import myfun as my
 import numpy as np
 import time
 import pickle
-
 from scipy.sparse.linalg import spilu, LinearOperator
+import os
+
+
+# Get current path
+current_path = '/local/scratch/hoffmann' # os.getcwd()
+
+# Create folder if it doesn't exist
+folder_name = "data"
+folder_path = os.path.join(current_path, folder_name)
+os.makedirs(folder_path, exist_ok=True)
 
 
 tic = time.time()
 
 # SETTINGS FOR SCHEME
 nodal_avrg_choice = 'least-squares'  # choose nodal averaging, see Remark 5.2
+
+# ------- CHOOSE OINE OF THE FOLLOWING CONFIGURATIONS ----------------
 
 # Configuration used to generate values in Table 1:
 test = 'diff' #set test case
@@ -18,11 +29,13 @@ spatial = [4,5,6,7]
 temporal = [25,50,200,800]
 TT = [0.0005,0.0005,0.001,0.001]
 
-# Configuration used to generate values in Table 3:
-test = 'manuf'
-method = 'expl'
-spatial = [1,2,3,4,5]
-temporal = [16,32,64,128,512]
+# # Configuration used to generate values in Table 3:
+# test = 'manuf'
+# method = 'expl'
+# spatial = [1,2,3,4,5]
+# temporal = [16,32,64,128,512]
+
+# --------------------------------------------------------------------
 
 for index in range(len(spatial)) :
 
@@ -31,7 +44,8 @@ for index in range(len(spatial)) :
     maxiter = Nt
 
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-    [K,F,K_dual,K_inter] = pickle.load(open('put_some_path_here'+pickle_name,'rb')) # load mesh
+    file_path = os.path.join(folder_path, pickle_name)
+    [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
         
     if test == 'diff' : 
     # DIFFUSION DOMINATED REGIME
@@ -124,14 +138,15 @@ for index in range(len(spatial)) :
 
     toc = time.time()
 
-    A = my.assemble_FE_matrix(K_dual)
+    [A,M] = my.assemble_FE_matrix(K_dual)
     ilu = spilu(A)  # A must be CSC format
     M_FE = LinearOperator(A.shape, lambda x: x / A.diagonal()) # basic pre-conditioning
 
     data = [K,F,K_dual,K_inter]
 
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     elapsed = time.time() - toc
     print('FE matrix assembled in ',"%.2f" % round(elapsed/60, 2), 'minutes.') 
@@ -154,7 +169,8 @@ for index in range(len(spatial)) :
     data.append(rho[0][:])
     data.append(FV_matrix.dot(rho[0][:]))
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(0)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     # GET COEFFICIENTS FOR MORLEY/LINEAR INTERPOLATION AT TIME "n = -1":
     FKED = my.getinterpolationRHS(K,rho[0][:]) 
@@ -166,7 +182,8 @@ for index in range(len(spatial)) :
     data.append(vertex_val)
     data.append(betaKF)
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(0)+'.p'
-    pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
 
     elapsed = time.time() - toc
     print('Morley reconstruction computed in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
@@ -194,7 +211,8 @@ for index in range(len(spatial)) :
         data.append(b)
         
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         if np.min(rho[n][:]) < 0 :
             print('Error: Negative densities detected.')
@@ -214,7 +232,8 @@ for index in range(len(spatial)) :
         data.append(rho[n+1][:])
         data.append(rhs)
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         # GET COEFFICIENTS FOR MORLEY/LINEAR INTERPOLATION :
         FKED = my.getinterpolationRHS(K,rho[n+1][:]) 
@@ -226,7 +245,8 @@ for index in range(len(spatial)) :
         data.append(vertex_val)
         data.append(betaKF)
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
-        pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+        file_path = os.path.join(folder_path, pickle_name)
+        pickle.dump(data,open(file_path,'wb')) # store data
 
         elapsed = time.time() - toc
         print('Morley reconstruction computed in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
@@ -248,7 +268,8 @@ for index in range(len(spatial)) :
             data.append(vv)
             data.append(b)
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n+1)+'.p'
-            pickle.dump(data,open('put_some_path_here'+pickle_name,'wb')) # store data
+            file_path = os.path.join(folder_path, pickle_name)
+            pickle.dump(data,open(file_path,'wb')) # store data
 
     progress = 100
     print("%.2f" % progress, 'procent of progress made.')
