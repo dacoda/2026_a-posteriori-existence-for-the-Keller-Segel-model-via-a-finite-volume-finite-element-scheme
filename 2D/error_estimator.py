@@ -1,6 +1,6 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# This script computes the a posteriori residual esitmator (27), computing all integrals exactly via a sufficiently exact quadrature rule.
+# This script computes the a posteriori residual esitmator (29), computing all integrals exactly via a sufficiently exact quadrature rule.
 # Here, we ignore the round-off and aplgebraic errors, as we are only interested in the asymptotics of the residual estimator.
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 
@@ -170,7 +170,7 @@ for index in range(len(spatial)):
     # set upper bounds for required constants
     cP = 1/(2*np.pi)**2 # Poincare-Wirtinger constant on the flat torus
     C_ell = 1
-    C_S = 2.1357917 # see [42]
+    C_S = 2.1357917 # see [43]
 
     B1 = 8/5*C_S**3*C_ell**2
     B2 = 864/125*C_S**6*C_ell**4

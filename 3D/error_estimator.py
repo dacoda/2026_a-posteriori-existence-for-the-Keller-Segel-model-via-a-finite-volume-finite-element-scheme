@@ -1,6 +1,6 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# This script computes the a posteriori residual esitmator (27), computing all integrals exactly via a sufficiently exact quadrature rule.
+# This script computes the a posteriori residual esitmator (29), computing all integrals exactly via a sufficiently exact quadrature rule.
 # Here, we ignore the round-off and algebraic errors, as we are only interested in the asymptotics of the residual estimator.
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 

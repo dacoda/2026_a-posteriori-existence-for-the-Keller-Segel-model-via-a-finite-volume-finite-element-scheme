@@ -16,7 +16,7 @@ import os
 
 
 # Get current path
-current_path = '/local/scratch/hoffmann' # os.getcwd()
+current_path = os.getcwd()
 
 # Create folder if it doesn't exist
 folder_name = "data"
@@ -60,7 +60,7 @@ for stability in ['genGronwall','loc-in-time']:
         # set upper bounds for required constants
         cP = 1/(2*np.pi)**2 # Poincare-Wirtinger constant on the flat torus
         C_ell = 1
-        C_S = 2.1357917 # see [42]
+        C_S = 2.1357917 # see [43]
 
         cUSR = 0
         for j in range(K.num) :

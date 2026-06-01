@@ -1,6 +1,6 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# This script computes and stores the a posteriori residual esitmator (27) and other quantities needed to compute the full error estimators in Theorem 6.8.
+# This script computes and stores the a posteriori residual esitmator (29) and other quantities needed to compute the full error estimators in Theorem 6.8.
 # The full estimator, including round-off errors and algebraic errors, will be assembled in compare_stability.py.
 # We compute all integrals exactly via a sufficiently exact quadrature rule.
 
@@ -24,7 +24,7 @@ import os
 
 
 # Get current path
-current_path = '/local/scratch/hoffmann' # os.getcwd()
+current_path = os.getcwd()
 
 # Create folder if it doesn't exist
 folder_name = "data"
@@ -172,7 +172,7 @@ for index in range(len(spatial)):
     C_ell = 1
 
     # set upper bounds for required constants
-    C_S = 2.1357917 # see [42]
+    C_S = 2.1357917 # see [43]
 
     B1 = 8/5*C_S**3*C_ell**2
     B2 = 864/125*C_S**6*C_ell**4

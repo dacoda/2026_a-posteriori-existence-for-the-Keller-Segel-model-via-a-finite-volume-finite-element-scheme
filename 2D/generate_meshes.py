@@ -16,7 +16,7 @@ import os
 
 
 # Get current path
-current_path = '/local/scratch/hoffmann' # os.getcwd()
+current_path = os.getcwd()
 
 # Create folder if it doesn't exist
 folder_name = "data"

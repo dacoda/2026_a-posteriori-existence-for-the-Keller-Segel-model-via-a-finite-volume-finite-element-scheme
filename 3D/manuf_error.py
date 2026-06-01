@@ -1,7 +1,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # This script computes the 'exact' L^2(H^1)-L^inf(L^2)-error, up to quadrature errors for integrating a nonlinear function numerically, 
-# for the manufactured solution (29) and (30).
+# for the manufactured solution (31) and (32).
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 
 # The quadrature points and weights, stored in triangle10.csv, are taken from
