@@ -107,8 +107,6 @@ for stability in ['genGronwall','loc-in-time']:
         C11 = 11*K.num
         C12 = 91*K.num
 
-        tol = 10**-5 # set relative tolerance used in iterative solvers for linear systems of equations
-
         n = 0
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
@@ -175,11 +173,10 @@ for stability in ['genGronwall','loc-in-time']:
             C3b = 6*K.num*np.max(maxFq0)
             C3 = C3a + C3b
 
-            thetaFE = Csz*np.sqrt(((1-2*C4*eps)/smallestEV_M)/(1-(2+6**(3/2)*largestEV_M/smallestEV_M)*C4*eps))*(((C5*eps)/(1-2*C5*eps)+tol)*np.linalg.norm(b) + ((C6*eps)/(1-2*C6*eps))*largestEV_FE*np.linalg.norm(cc))
-            thetaFV = 1/ht*np.max(K.area)**(1/2)*(((C1*eps)/(1-2*C1*eps)+tol)*np.linalg.norm(rhs)+((C2*eps)/(1-2*C2*eps))*largestEV_FV*np.linalg.norm(rhoFV))
+            thetaFE = Csz*np.sqrt(((1-2*C4*eps)/smallestEV_M)/(1-(2+6*largestEV_M/smallestEV_M)*C4*eps))*((C5*eps)/(1-2*C5*eps)*np.linalg.norm(b) + np.linalg.norm(b - A_FE @ cc) + ((C6*eps)/(1-2*C6*eps))*largestEV_FE*np.linalg.norm(cc))
+            thetaFV = 1/ht*np.max(K.area)**(1/2)*((C1*eps)/(1-2*C1*eps)*np.linalg.norm(rhs)+np.linalg.norm(rhs - FV_matrix @ rhoFV)+((C2*eps)/(1-2*C2*eps))*largestEV_FV*np.linalg.norm(rhoFV))
             algebraic = 12*C3*C_S*eps*(np.sum(1/K.area))**(1/6) + thetaFE + thetaFV 
-            thetaFEq = Csz/(2*np.sqrt(np.pi))*np.sqrt(((1-2*C10*eps)/smallestEV_M)/(1-(2+6**(3/2)*largestEV_Mq/smallestEV_Mq)*C10*eps))*(((C11*eps)/(1-2*C11*eps)+tol)*np.linalg.norm(b) + ((C12*eps)/(1-2*C12*eps))*largestEV_FEq*(np.linalg.norm(qq[0])+np.linalg.norm(qq[1])))
-
+            thetaFEq = Csz/(2*np.sqrt(np.pi))*np.sqrt(((1-2*C10*eps)/smallestEV_M)/(1-(2+6*largestEV_Mq/smallestEV_Mq)*C10*eps))*((C11*eps)/(1-2*C11*eps)*(np.linalg.norm(bb[0])+np.linalg.norm(bb[1])) + np.linalg.norm(bb[0] - A_FEq @ qq[0]) + np.linalg.norm(bb[1] - A_FEq @ qq[1]) + ((C12*eps)/(1-2*C12*eps))*largestEV_FEq*(np.linalg.norm(qq[0])+np.linalg.norm(qq[1])))
 
             if stability == 'genGronwall' :
 
