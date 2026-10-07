@@ -34,16 +34,23 @@ os.makedirs(folder_path, exist_ok=True)
 
 tic = time.time()
 
-# SETTINGS FOR SCHEME
-test = 'diff' # blowup, idff or manuf
+# SETTINGS FOR SCHEME 
 
 
 # Configuration used to generate values in Table 1:
-test = 'diff' 
-method = 'expl'
-spatial = [4,5,6,7]
-temporal = [25,50,200,800]
-TT = [0.0005,0.0005,0.001,0.001]
+test = 'diff' #set test case
+method = 'expl' 
+spatial = [5,6,7]
+temporal = [18,80,100]
+TT = [0.006,0.02,0.03]
+
+
+# # Configuration used to generate values in Table 3:
+# test = 'diff' #set test case
+# method = 'expl' 
+# spatial = [6,6,6,6]
+# temporal = [20,80,320,1280]
+# TT = [0.02,0.02,0.02,0.02]
 
 
 def initial_rho(x,y) :
@@ -67,7 +74,7 @@ for index in range(len(spatial)):
         hats.append(my.hat(K_dual,i))
     hats = np.asarray(hats)
 
-    data = np.loadtxt("triangle10.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("triangle11.csv", delimiter=",", skiprows=1)
     weights_tri = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2])) # physical coordinates
 
@@ -168,14 +175,14 @@ for index in range(len(spatial)):
     # ------------------------------------- COMPUTE MORLEY VALUE ------------------------------
 
     # set upper bounds for required constants
-    cP = 1/(2*np.pi)**2 # Poincare-Wirtinger constant on the flat torus
+    cP = 1/np.pi # Payne-Weinberger-type constant for convex domains of the Poincare-Wirtinger inequality
     C_ell = 1
 
     # set upper bounds for required constants
-    C_S = 2.1357917 # see [43]
+    C_S = (23/16 + np.sqrt(2))**(1/6) #2.1357917 # see [43]
 
-    B1 = 8/5*C_S**3*C_ell**2
-    B2 = 864/125*C_S**6*C_ell**4
+    B1 = 2*C_S**3*C_ell**2
+    B2 = 4*C_S**6*C_ell**4
 
     # set further constants
     K_el = K.points[K.simplices]
@@ -188,9 +195,9 @@ for index in range(len(spatial)):
         inradK = 1/2*np.sqrt(((b+c-a)*(c+a-b)*(a+b-c))/(a+b+c)) # 2D formula
         cUSR = np.max([cUSR,hK/(2*inradK)])
 
-    cTr = np.sqrt(2*cUSR) # L2
-    cR = 0.5*cTr*np.sqrt(3*(1+cUSR**2*cP**2))
-    Csz = np.sqrt(cUSR/2)+1
+    cTr = 1.841149235796647  # L2
+    cR = cTr*np.sqrt(3*(1+(cUSR**2*cP**2)/4)) # 2D adaptation of the constant
+    Csz = np.sqrt(6*cUSR)/4
 
     cUSR = 0
     for j in range(K_inter.num) :
@@ -200,11 +207,11 @@ for index in range(len(spatial)):
         c = np.linalg.norm(K_inter.E.el[j][2]) 
         inradK = 1/2*np.sqrt(((b+c-a)*(c+a-b)*(a+b-c))/(a+b+c))  # 2D formula
         cUSR = np.max([cUSR,hK/(2*inradK)])
-    cRprime = cTr*np.sqrt(6*(1+cUSR**2*cP**2))
+    cRprime = cTr*np.sqrt(6*(1+(cUSR**2*cP**2)/4)) # 2D adaptation of the constant
 
     total_time_space = 0
     morleyL3 = []
-    list_time_space =[]
+    list_res, list_dj, list_time, list_Cell_Linf, list_cj, list_FE = [],[],[],[],[],[]
     for n in range(Nt) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
@@ -219,7 +226,7 @@ for index in range(len(spatial)):
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
         [vertex_val_p,betaKF_p] =  pickle.load(open(file_path,'rb')) # load data
-       
+        
         if n % 10 == 0 :
             print('n ',n)
         
@@ -230,10 +237,14 @@ for index in range(len(spatial)):
 
         morley_inter_faces = my.get_morley_val_edge(K,pt_edge_inter,vertex_val,bF_face_inter,bK_face_inter,betaKF,inverse_map)
 
-        grad_morley_primal_faces = my.get_grad_morley_val_edge(K,bF_edge_primal,gK_edge_primal,vertex_val,betaKF,face_to_tet,loc_face_ind)
-        grad_morley_inter = my.get_grad_morley_val(K,bF_inter,bK_inter,gF_inter,gK_inter,vertex_val_p,betaKF_p)
-        lap_morley_inter = my.get_lap_morley_val(bF_inter,bK_inter,gF_inter,gK_inter,lapF_inter,lapK_inter,betaKF_p)
+        if n >0 :
+            grad_morley_inter_0 = grad_morley_inter_p
+            lap_morley_inter_0 = lap_morley_inter_p
+            grad_c_m = grad_c_0
 
+        grad_morley_primal_faces = my.get_grad_morley_val_edge(K,bF_edge_primal,gK_edge_primal,vertex_val,betaKF,face_to_tet,loc_face_ind)
+        grad_morley_inter_p = my.get_grad_morley_val(K,bF_inter,bK_inter,gF_inter,gK_inter,vertex_val_p,betaKF_p)
+        lap_morley_inter_p = my.get_lap_morley_val(bF_inter,bK_inter,gF_inter,gK_inter,lapF_inter,lapK_inter,betaKF_p)
 
         # ------------------------------------ COMPUTE C FE VALUE --------------------------------------
         
@@ -266,8 +277,8 @@ for index in range(len(spatial)):
 
         c_val = my.get_c_val(aux_c, hats_loc, xi_ref, dual_index, fp_sorted, order, sub_index_sorted, N_primal, N_sub)
 
-        grad_c = np.zeros((N_primal, N_sub, 2), dtype=aux_v.dtype)
-        grad_c[fp_sorted, sub_index_sorted, :] = aux_v[fd_sorted]
+        grad_c_0 = np.zeros((N_primal, N_sub, 2), dtype=aux_v.dtype)
+        grad_c_0[fp_sorted, sub_index_sorted, :] = aux_v[fd_sorted]
 
         # get FE jump term
         plus  = aux_v[K_dual.face_to_tet[:,0]]
@@ -289,38 +300,33 @@ for index in range(len(spatial)):
             file_path = os.path.join(folder_path, pickle_name)
             pickle.dump(initialL2,open(file_path,'wb')) # store data
 
-        weighted_sum = np.matmul(morley_primal_0**3,weights_tri) # L3 norm
+        weighted_sum = np.matmul(np.abs(morley_primal_0)**3,weights_tri) # L3 norm (not exact, quadrature of exactness 10 used here)
         morleyL3.append((np.dot(K.area,weighted_sum))**(1/3))
 
 
         # --------------------------------------- A POSTERIORI ESTIMATOR ------------------------------------------------
-        total = 0
-
-        # Lemma 6.1 ...
-        res_inter = ((morley_inter_p - morley_inter_0)/ht + np.einsum('tkni,tki->tkn', grad_morley_inter, grad_c) - lap_morley_inter)**2
-        weighted_sum = np.einsum('tki,i->tk', res_inter, weights_tri)
-        quadrature = np.sum(K.diam**2 @ (area_inter*weighted_sum))
-
-        total += quadrature
-
-        jumps_FV = np.einsum('tki,ti->tk', grad_morley_primal_faces[:,0,...] - grad_morley_primal_faces[:,1,...], normals)**2
-        weighted_sum = np.matmul(jumps_FV,weights1D)
-        quadrature = cR*(diamEs @ (areaEs*weighted_sum))
-
-        total += quadrature
-        #... Lemma 6.1
 
 
         if n==0 :
+
+            # Lemma 6.1 ...
+            res_inter0 = ((morley_inter_p - morley_inter_0)/ht + np.einsum('tkni,tki->tkn', grad_morley_inter_p, grad_c_0) - lap_morley_inter_p)**2
+            weighted_sum0 = np.einsum('tki,i->tk', res_inter0, weights_tri)
+            res1 = 0
+            res0 = cP*np.sum(K.diam**2 @ (area_inter*weighted_sum0))**(1/2)
+    
+            jumps_FV = np.einsum('tki,ti->tk', grad_morley_primal_faces[:,0,...] - grad_morley_primal_faces[:,1,...], normals)**2
+            weighted_sum = np.matmul(jumps_FV,weights1D)
+            dj = cR*(diamEs @ (areaEs*weighted_sum))**(1/2)
+            #... Lemma 6.1
 
             grad_morley_inter_diff = my.get_grad_morley_val(K,bF_inter,bK_inter,gF_inter,gK_inter,np.asarray(vertex_val_p) - np.asarray(vertex_val),np.asarray(betaKF_p) - np.asarray(betaKF))
 
             # Lemma 6.2 ...
             diff_time2 = ((morley_primal_p - morley_primal_0)/ht - (aux_rho_p[:,None] - aux_rho_0[:,None])/ht)**2
             weighted_sum = np.matmul(diff_time2,weights_tri)
-            quadrature = np.dot(K.area,weighted_sum)
-
-            total += quadrature
+            time1 = np.dot(K.area,weighted_sum)**(1/2)
+            time2 = 0
             # ... Lemma 6.2
 
             # Lemma 6.3 ...
@@ -331,83 +337,11 @@ for index in range(len(spatial)):
             max_morley_p = np.max(vertex_val_p) + np.max(np.sum(betaKF_p,axis=1))
             max_diff_morley_p = np.max(np.abs(vertex_val_p - vertex_val)) + np.max(np.sum(np.abs(np.asarray(betaKF_p) - np.asarray(betaKF)),axis=1)) # betas can be estimated tighter if necessary
 
-            quadrature = C_ell*(max_morley_p + max_diff_morley_p)*quadrature_diff 
-            
-            total += quadrature
+            Cell_Linf = C_ell*(max_morley_p + max_diff_morley_p)*quadrature_diff 
 
             val = my.get_conv_terms(K_inter,aux_v,aux_rho_0,morley_inter_faces)
             weighted_sum = np.matmul(val**2,weights1D)
-            quadrature = cRprime*(K_inter.edge_length @ (K_inter.edge_length*weighted_sum))
-
-            total += quadrature
-
-            # FE scheme ...
-            res_FE = (c_val - morley_inter_0)**2
-            weighted_sum = np.einsum('tki,i->tk', res_FE, weights_tri)
-            quadrature_res = np.sum(K.diam**2 @ (area_inter*weighted_sum))
-
-            quadrature_jump = K_dual.edge_length @ (K_dual.edge_length*jump_grad_c**2)
-
-            diff_q0_morley = (q0_inter_0 - morley_inter_0)**2
-            weighted_sum = np.einsum('tki,i->tk', diff_q0_morley, weights_tri)
-            quadrature3 = (np.sum(K.diam**2 @ (area_inter*weighted_sum)))**(1/2)
-
-            diff_FV_morley = (aux_rho_0[:,None] - morley_primal_0)**2
-            weighted_sum = np.matmul(diff_FV_morley,weights_tri)
-            quadrature4 = (np.dot(K.area,weighted_sum))**(1/2)
-
-            quadrature = Csz*(quadrature_res + 1/2*quadrature_jump + quadrature3 + 4/3 * quadrature4) 
-
-            total += quadrature *max_diff_morley_p
-            # ... FE scheme
-
-            # ... Lemma 6.3
-
-
-            # first time step ...
-            early_inter = np.linalg.norm(np.einsum('tki,tkj->tkij',morley_inter_p - morley_inter_0,grad_c) + grad_morley_inter_diff,axis=3)**2
-            weighted_sum = np.einsum('tki,i->tk', early_inter, weights_tri)
-            quadrature = np.sum(K.diam**2 @ (area_inter*weighted_sum))
-
-            total += quadrature
-            # ... first time step
-
-
-        else:
-
-            pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
-            file_path = os.path.join(folder_path, pickle_name)
-            [ht,aux_rho_m,rhs] = pickle.load(open(file_path,'rb')) # load data
-
-            # Lemma 6.2 ...
-            diff_time1 = ((aux_rho_p[:,None] - aux_rho_0[:,None])/ht - (aux_rho_0[:,None] - aux_rho_m[:,None])/ht)**2
-            diff_time2 = ((morley_primal_p - morley_primal_0)/ht - (aux_rho_p[:,None] - aux_rho_0[:,None])/ht)**2
-            weighted_sum = np.matmul(diff_time2,weights_tri)
-            quadrature = (np.dot(K.area,weighted_sum+diff_time1[:,0]))**(1/2)
-
-            total += quadrature
-            # ... Lemma 6.2
-                
-
-            # Lemma 6.3 ...
-            diff_morleys_prev = quadrature_diff
-            diff_morleys = (morley_primal_p - morley_primal_0)**2
-            weighted_sum = np.matmul(diff_morleys,weights_tri)
-            quadrature_diff = (np.dot(K.area,weighted_sum))**(1/2)
-
-            max_morley_0 = max_morley_p
-            max_morley_p = np.max(vertex_val) + np.max(np.sum(betaKF,axis=1))
-            max_diff_morley_p = np.max(np.abs(vertex_val_p - vertex_val)) + np.max(np.sum(np.abs(np.asarray(betaKF_p) - np.asarray(betaKF)),axis=1)) # betas can be estimated tighter if necessary
-
-            quadrature = C_ell*(max_morley_p + max_diff_morley_p)*quadrature_diff  + max_morley_0*diff_morleys_prev
-            
-            total += quadrature
-
-            val = my.get_conv_terms(K_inter,aux_v,aux_rho_0,morley_inter_faces)
-            weighted_sum = np.matmul(val**2,weights1D)
-            quadrature = cRprime*(K_inter.edge_length @ (K_inter.edge_length*weighted_sum))
-
-            total += quadrature
+            cj = cRprime*(K_inter.edge_length @ (K_inter.edge_length*weighted_sum))**(1/2)
 
             # FE scheme ...
             res_FE = (c_val - morley_inter_0)**2
@@ -424,23 +358,98 @@ for index in range(len(spatial)):
             weighted_sum = np.matmul(diff_FV_morley,weights_tri)
             quadrature4 = np.dot(K.area,weighted_sum)
 
-            quadrature = Csz*(quadrature_res + 1/2*quadrature_jump + quadrature3 + 4/3 * quadrature4) 
-            
-            total += quadrature *max_morley_0
+            FE = Csz*(quadrature_res + 1/2*quadrature_jump + quadrature3 + 4/3 * quadrature4)**(1/2)
+            pre_FE = max_diff_morley_p
             # ... FE scheme
 
             # ... Lemma 6.3
 
-        total_time_space += total*ht 
-        list_time_space.append(total)
 
-    total_time_space = np.sqrt(total_time_space) # = theta_Omega
+            # first time step ...
+            early_inter = np.linalg.norm(np.einsum('tki,tkj->tkij',morley_inter_p - morley_inter_0,grad_c_0) + grad_morley_inter_diff,axis=3)**2
+            weighted_sum = np.einsum('tki,i->tk', early_inter, weights_tri)
+            res1 = np.sum(K.diam**2 @ (area_inter*weighted_sum))**(1/2)
+            # ... first time step
+
+
+        else:
+
+            # Lemma 6.1 ...
+            res_inter1 = ((morley_inter_p - morley_inter_0)/ht + np.einsum('tkni,tki->tkn', grad_morley_inter_p, grad_c_0) - lap_morley_inter_p)**2
+            res_inter0 = ((morley_inter_p - morley_inter_0)/ht + np.einsum('tkni,tki->tkn', grad_morley_inter_0, grad_c_m) - lap_morley_inter_0)**2
+            weighted_sum1 = np.einsum('tki,i->tk', res_inter1, weights_tri)
+            weighted_sum0 = np.einsum('tki,i->tk', res_inter0, weights_tri)
+            res1 = cP*np.sum(K.diam**2/4 @ (area_inter*weighted_sum1))**(1/2)
+            res0 = cP*np.sum(K.diam**2/4 @ (area_inter*weighted_sum0))**(1/2)
+    
+            jumps_FV = np.einsum('tki,ti->tk', grad_morley_primal_faces[:,0,...] - grad_morley_primal_faces[:,1,...], normals)**2
+            weighted_sum = np.matmul(jumps_FV,weights1D)
+            dj = cR*(diamEs @ (areaEs*weighted_sum))**(1/2)
+            #... Lemma 6.1
+
+            pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
+            file_path = os.path.join(folder_path, pickle_name)
+            [ht,aux_rho_m,rhs] = pickle.load(open(file_path,'rb')) # load data
+
+            # Lemma 6.2 ...
+            diff_time2 = ((aux_rho_p - aux_rho_0)/ht - (aux_rho_0 - aux_rho_m)/ht)**2
+            diff_time1 = ((morley_primal_p - morley_primal_0)/ht - (aux_rho_p[:,None] - aux_rho_0[:,None])/ht)**2
+            weighted_sum = np.matmul(diff_time1,weights_tri)
+            time2 = (np.dot(K.area,diff_time2))**(1/2)
+            time1 = (np.dot(K.area,weighted_sum))**(1/2)
+            # ... Lemma 6.2
+                
+            # Lemma 6.3 ...
+            diff_morleys_prev = quadrature_diff
+            diff_morleys = (morley_primal_p - morley_primal_0)**2
+            weighted_sum = np.matmul(diff_morleys,weights_tri)
+            quadrature_diff = (np.dot(K.area,weighted_sum))**(1/2)
+
+            max_morley_0 = max_morley_p
+            max_morley_p = np.max(vertex_val) + np.max(np.sum(betaKF,axis=1))
+            max_diff_morley_p = np.max(np.abs(vertex_val_p - vertex_val)) + np.max(np.sum(np.abs(np.asarray(betaKF_p) - np.asarray(betaKF)),axis=1)) # betas can be estimated tighter if necessary
+
+            Cell_Linf = C_ell*(max_morley_p + max_diff_morley_p)*quadrature_diff  + max_morley_0*diff_morleys_prev
+
+            val = my.get_conv_terms(K_inter,aux_v,aux_rho_0,morley_inter_faces)
+            weighted_sum = np.matmul(val**2,weights1D)
+            cj = cRprime*(K_inter.edge_length @ (K_inter.edge_length*weighted_sum))**(1/2)
+
+            # FE scheme ...
+            res_FE = (c_val - morley_inter_0)**2
+            weighted_sum = np.einsum('tki,i->tk', res_FE, weights_tri)
+            quadrature_res = np.sum(K.diam**2 @ (area_inter*weighted_sum))
+
+            quadrature_jump = K_dual.edge_length @ (K_dual.edge_length*jump_grad_c**2)
+
+            diff_q0_morley = (q0_inter_0 - morley_inter_0)**2
+            weighted_sum = np.einsum('tki,i->tk', diff_q0_morley, weights_tri)
+            quadrature3 = np.sum(K.diam**2 @ (area_inter*weighted_sum))
+
+            diff_FV_morley = (aux_rho_0[:,None] - morley_primal_0)**2
+            weighted_sum = np.matmul(diff_FV_morley,weights_tri)
+            quadrature4 = np.dot(K.area,weighted_sum)
+
+            FE = Csz*(quadrature_res + 1/2*quadrature_jump + quadrature3 + 4/3 * quadrature4)**(1/2)
+            pre_FE = max_morley_p 
+            # ... FE scheme
+
+            # ... Lemma 6.3
+
+        list_res.append([res0,res1])
+        list_dj.append(dj)
+        list_time.append([time1,time2])
+        list_Cell_Linf.append(Cell_Linf)
+        list_cj.append(cj)
+        list_FE.append([pre_FE,FE])
+
+    data = [list_res,list_dj,list_time,list_Cell_Linf,list_cj,list_FE]
     morleyL3 = np.asarray(morleyL3)
 
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_theta.p'
     file_path = os.path.join(folder_path, pickle_name)
-    pickle.dump(list_time_space,open(file_path,'wb')) # store data
-
+    pickle.dump(data,open(file_path,'wb')) # store data
+    
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_L3.p'
     file_path = os.path.join(folder_path, pickle_name)
     pickle.dump(morleyL3,open(file_path,'wb')) # store data

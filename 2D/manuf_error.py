@@ -1,7 +1,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # This script computes the 'exact' L^2(H^1)-L^inf(L^2)-error, up to quadrature errors for integrating a nonlinear function numerically, 
-# for the manufactured solution (33) and (34).
+# for the manufactured solution (32) and (33).
 
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 
@@ -30,7 +30,7 @@ folder_path = os.path.join(current_path, folder_name)
 os.makedirs(folder_path, exist_ok=True)
 
 
-# Configuration used to generate values in Table 3:
+# Configuration used to generate values in Table 4:
 test = 'manuf' #set test case
 method = 'expl' # expl or impl
 spatial = [1,2,3,4,5]
@@ -64,7 +64,7 @@ for index in range(len(spatial)) :
     print('----- fineness '+str(fineness)+' -----')
     print('Number primal elements : ',K.num)
 
-    data = np.loadtxt("triangle10.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("triangle11.csv", delimiter=",", skiprows=1)
     weights_tet = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2]))
 
@@ -172,5 +172,3 @@ for index in range(len(spatial)) :
 
         print('eocLinfL2: ',np.array(eoc1)) # cf. Bartels Table 3.2, should be 2
         print('eocL2H1: ',np.array(eoc2)) # cf. Bartels Table 3.2, should be 1
-
-

@@ -25,13 +25,19 @@ os.makedirs(folder_path, exist_ok=True)
 tic = time.time()
 
 # SETTINGS FOR SCHEME
-method = 'expl' # expl
 
-# Configuration used to generate values in Table 2:
-test = 'manuf'
+# Configuration used to generate values in Table 5:
+test = 'manuf' #set test case
 method = 'expl'
 spatial = [2,3,4,5,6]
 temporal = [32,64,128,256,512]
+
+# # Configuration used to generate values in Table 2:
+# test = 'diff' #set test case
+# method = 'expl' 
+# spatial = [3,4,5,6,7]
+# temporal = [10,20,40,60,100]
+# TT = [0.00001,0.000016,0.000028,0.00004,0.00006]
 
 for index in range(len(spatial)) :
 
@@ -88,6 +94,21 @@ for index in range(len(spatial)) :
         
         T = 1 # time interval [0,T]
 
+
+    elif test == 'diff':
+        pi = np.pi
+
+        def f(x,t) :
+            return 0
+
+        def g(x,t) :
+            return 0
+ 
+        def rho0(x) :
+            val = np.cos(2*pi*x[0])*np.cos(2*pi*x[1])*np.cos(2*pi*x[2])+1
+            return val
+            
+        T = TT[index]
     else :
         print('Warning: Wrong string input for test.')
  
@@ -115,7 +136,7 @@ for index in range(len(spatial)) :
     cc = np.zeros([maxiter+1,len(K_dual.pt_dual_reduced)])
 
     toc = time.time()
-    A = my.assemble_FE_matrix(K_dual)
+    [A,M] = my.assemble_FE_matrix(K_dual)
 
     data = [K,F,K_dual,K_inter]
     pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
@@ -139,6 +160,7 @@ for index in range(len(spatial)) :
     data = []
     data.append(ht) # time step size Delta t^n := t^{n+1} - t^n
     data.append(rho[0][:])
+    data.append(FV_matrix.dot(rho[0][:]))
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(0)+'.p'
     file_path = os.path.join(folder_path, pickle_name)
     pickle.dump(data,open(file_path,'wb')) # store data
@@ -161,7 +183,7 @@ for index in range(len(spatial)) :
     pickle.dump(data,open(file_path,'wb')) # store data
 
     # calculate c0 with rho0 as right-hand side 
-    c0 = my.getc_FE(rho[0][:],lambda x : g(x,0),K_dual,A) #,M) 
+    c0, b = my.getc_FE(rho[0][:],None,lambda x : g(x,0),K_dual,A) #,M) 
     cc[0][:] = c0
     elapsed = time.time() - toc
     print('initial chemical concentration computed via FE scheme in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
@@ -180,6 +202,7 @@ for index in range(len(spatial)) :
         data = []
         data.append(cc[n][:])
         data.append(vv)
+        data.append(b)
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
@@ -191,7 +214,8 @@ for index in range(len(spatial)) :
 
         toc = time.time()
 
-        rho[n+1][:] = my.finitevolumescheme_rho_expl(rho[n][:],ht,K,vv,lambda x : f(x,(n+1)*ht),FV_matrix)
+        rhoFV, rhs = my.finitevolumescheme_rho_expl(rho[n][:],ht,K,vv,lambda x : f(x,(n+1)*ht),FV_matrix)
+        rho[n+1][:] = rhoFV
         
         elapsed = time.time() - toc
         print('Bacterial denisty computed via FV scheme in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
@@ -201,6 +225,7 @@ for index in range(len(spatial)) :
         data = []
         data.append(ht) # time step size Delta t^n := t^{n+1} - t^n
         data.append(rho[n+1][:])
+        data.append(rhs)
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
         pickle.dump(data,open(file_path,'wb')) # store data
@@ -223,7 +248,8 @@ for index in range(len(spatial)) :
         
         toc = time.time()
         # GET CHEMICAL DENISTY
-        cc[n+1][:] = my.getc_FE(rho[n+1][:],lambda x : g(x,(n+1)*ht),K_dual,A) # ,M) 
+        cn,b = my.getc_FE(rho[n+1][:],cc[n][:],lambda x : g(x,(n+1)*ht),K_dual,A) # ,M) 
+        cc[n+1][:] = cn
         elapsed = time.time() - toc
         print('Chemical concentration approximated via FE scheme in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
         
@@ -234,6 +260,7 @@ for index in range(len(spatial)) :
             data = []
             data.append(cc[n+1][:])
             data.append(vv)
+            data.append(b)
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_c at time step'+str(n+1)+'.p'
             file_path = os.path.join(folder_path, pickle_name)
             pickle.dump(data,open(file_path,'wb')) # store data

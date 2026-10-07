@@ -7,8 +7,8 @@ This repository contains the code used to produce the numerical results presente
   title={{A} posteriori existence for the {K}eller-{S}egel model via a finite volume - finite element scheme},
   author={Giesselmann, Jan and Hoffmann, Marc},
   year={2026},
-  month={06},
-  eprint={2509.17710v1},
+  month={10},
+  eprint={2509.17710v3},
   eprinttype={arxiv},
   eprintclass={math.NA}
 }
@@ -22,14 +22,14 @@ If you find these results useful, please cite either the article mentioned above
   author={Giesselmann, Jan and Hoffmann, Marc},
   year={2026},
   publisher={Zenodo},
-  url={https://doi.org/10.5281/zenodo.20425488}
+  url={https://doi.org/10.5281/zenodo.23191322}
 }
 ```
 
 ## Abstract
 
 We derive two forms of conditional a posteriori error estimates for a finite volume scheme approximating the parabolic-elliptic Keller-Segel system. 
-The estimates control the error in the L^∞(0,T;L²(Ω))- and L²(0,T;H¹(Ω))-norm and exhibit linear convergence in the mesh size, as observed in numerical experiments. 
+The estimates control the error in the L^∞(0,T;L²(Ω))-norm and exhibit linear convergence in the mesh size, as observed in numerical experiments. 
 Crucially, we show that, as long as the condition of the error estimate is satisfied, a weak solution exists. 
 This means, as long as the numerical solution has good properties, we can rigorously infer existence of an exact solution.
 

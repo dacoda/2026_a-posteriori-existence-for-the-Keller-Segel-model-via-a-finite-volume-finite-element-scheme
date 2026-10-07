@@ -419,7 +419,6 @@ def diam(K) :
 
 # ------------------------------------------------------------------------------------------
 
-
 class dual_mesh:
     def __init__(self, K, E):
         points_primal = len(K.points)
@@ -983,10 +982,8 @@ def post_process_TinK(K_inter, K):
                     elif midint[1] < 0.1:
                         K_inter.el[j] += np.array([[0, 1], [0, 1], [0, 1]])
 
-    
 
 # ------------------------------------- NUMERICAL SCHEME -----------------------------------
-
 # FV FE scheme
 def assemble_FE_matrix(K_dual):
     # see Fig. 3.14. in Bartels2015
@@ -1081,7 +1078,7 @@ def assemble_FV_matrix(ht,K,eps) :
     return sparseA
 
 
-def getc_FE(rhoFV,g,K_dual,sparseA,M) :
+def getc_FE(rhoFV,c_old,g,K_dual,sparseA,M) :
 
     b = np.zeros(len(K_dual.pt_dual_reduced))
 
@@ -1098,17 +1095,13 @@ def getc_FE(rhoFV,g,K_dual,sparseA,M) :
             else :
                 b[K_dual.pt_ident[K_dual.simplices[i][m]]] += 1/3* vol_K * (g(mid_K) + rhoFV[i1]) # using midpoint rule on g and exact integration of rhoFV; 1/4 = 1/(d+1)
 
-    c, content = sp.sparse.linalg.cg(sparseA,b) # c_h^n(x) = sum_i (c_i*hat_i(x))
+    c, content = sp.sparse.linalg.cg(sparseA,b,x0 = c_old,tol=1e-8) # c_h^n(x) = sum_i (c_i*hat_i(x))
     return c, b
 
-def get_gradc(K_dual,c) :
-    
-    val = []
-    
-    for i in range(K_dual.num) :
-        val.append(np.matmul(np.transpose(K_dual.grads[i]),c[K_dual.pt_ident[K_dual.simplices[i]]]))
 
-    return np.array(val)
+def get_gradc(K_dual, c):
+    pts = K_dual.pt_ident[K_dual.simplices]
+    return np.einsum("nji,nj->ni", K_dual.grads, c[pts])
 
 
 def get_c_val(cc, hats_loc, points, dual_index, fp_sorted, order, sub_index_sorted, N_primal, N_sub):
@@ -1182,7 +1175,7 @@ def finitevolumescheme_rho_expl(u_old,ht,K,vv,f,sparseA,M) :
         rhs[i_idx] -= ht * areaE / areaK[i_idx] * val * vKE
 
     # creating sparse matrix
-    uh, content = sp.sparse.linalg.cg(sparseA,rhs,tol=10**-12)
+    uh, content = sp.sparse.linalg.cg(sparseA,rhs,x0=u_old,tol=1e-10)
 
     return uh, rhs
 
@@ -1898,7 +1891,7 @@ def assemble_FE_matrix_q(K):
 
     return [sparseA,gradients,sparseA_reac]
 
-def getq_FE(K,sparseA,grad_morley) :
+def getq_FE(K,sparseA,grad_morley,q_old) :
 
     b = np.zeros(len(K.pt_reduced))
 
@@ -1909,36 +1902,74 @@ def getq_FE(K,sparseA,grad_morley) :
             
             b[K.pt_ident[K.simplices[i][m]]] += 1/3*vol_K*grad_morley[i] # exact quadrature
            
-    q, content = sp.sparse.linalg.cg(sparseA,b)
+    q, content = sp.sparse.linalg.cg(sparseA,b,x0=q_old,tol=1e-05)
 
     return q,b
 
-def get_gradq(K,grads,q) :
-    
-    val = []
-    for i in range(K.num) :
-        val.append(np.matmul(np.transpose(grads[i]),q[np.asarray(K.pt_ident)[K.simplices[i]]]))
 
-    return np.array(val)
+def get_gradq(K, grads, q):
+    pts = np.asarray(K.pt_ident)[K.simplices]
+    return np.einsum("nji,nj->ni", grads, q[pts])
 
 
 # --------------------------------------- COMPARE STABILITY ----------------------------------------------
 
-def newton_method1D(f,dx_f,x0,tol,maxiter) :
-# determine root of f:\R \to \R
+from scipy.optimize import brentq
 
-    xnew = x0
-    for i in range(maxiter) :
-        xold = xnew
 
-        xnew = xold - f(xold)/dx_f(xold)
+def first_admissible_delta(func, dfunc, xtol=1e-12):
+    """
+    Find the first root delta > 1 and a nearby point satisfying
+    func(delta) < 0.
 
-        if np.abs(xold-xnew) < tol :
-            break
+    Assumes func is strictly convex for delta > 0.
+    """
 
-    print('Newton steps:',i)
-    if i == maxiter-1 :
-        print('Warning: Newton-method reached maxiter.')
-        return -1
+    # Start just above 1.
+    x1 = np.nextafter(1.0, np.inf)
 
-    return xnew
+    # Already admissible.
+    if func(x1) < 0:
+        return x1, x1
+
+    if dfunc(x1) >= 0:
+        print('No admissible delta > 1 exists')
+        return x1,x1
+
+    # Find a bracket for the unique minimum:
+    # dfunc(a) < 0, dfunc(b) > 0
+    a = x1
+    b = 1.0 + 1e-6
+
+    while dfunc(b) <= 0:
+        b *= 2.0
+
+        if b > 1e12:
+            raise RuntimeError("Could not locate the minimum.")
+
+    # Unique minimizer
+    delta_min = brentq(dfunc, a, b, xtol=xtol, rtol=4*np.finfo(float).eps)
+
+    f_min = func(delta_min)
+
+    # No negative region exists
+    if f_min >= 0:
+        print(
+            f"No admissible delta > 1 exists. "
+            f"Minimum at delta={delta_min:.16e} is "
+            f"func={f_min:.16e}."
+        )
+        return [delta_min,delta_min]
+
+    # First root, i.e. left boundary of the admissible interval
+    delta_boundary = brentq(func, x1, delta_min, xtol=xtol, rtol=4*np.finfo(float).eps)
+
+    # Strict inequality: move one representable float to the right.
+    delta = delta_boundary+2*xtol # np.nextafter(delta_boundary, np.inf)
+
+    # Sanity check
+    if func(delta) >= 0:
+        print("Could not obtain func(delta) < 0 immediately after the root.")
+
+    return delta_boundary, delta
+ 

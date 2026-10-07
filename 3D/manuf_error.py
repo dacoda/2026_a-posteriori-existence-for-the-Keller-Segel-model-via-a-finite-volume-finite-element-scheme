@@ -1,7 +1,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # This script computes the 'exact' L^2(H^1)-L^inf(L^2)-error, up to quadrature errors for integrating a nonlinear function numerically, 
-# for the manufactured solution (31) and (32).
+# for the manufactured solution (34) and (35).
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 
 # The quadrature points and weights, stored in triangle10.csv, are taken from
@@ -60,7 +60,7 @@ for index in range(len(spatial)) :
     print('----- fineness '+str(fineness)+' -----')
     print('Number primal elements : ',K.num)
 
-    data = np.loadtxt("tetrahedron14.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("tetrahedron15.csv", delimiter=",", skiprows=1)
     weights_tet = data[:,-1]
     xi_ref = np.column_stack((data[:,1],data[:,2],data[:,3]))
 
@@ -101,7 +101,7 @@ for index in range(len(spatial)) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
-        [ht,rho_0] = pickle.load(open(file_path,'rb')) # load data
+        [ht,rho_0,rhs] = pickle.load(open(file_path,'rb')) # load data
 
 
         if n > 0:
@@ -112,7 +112,7 @@ for index in range(len(spatial)) :
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n)+'.p'
             file_path = os.path.join(folder_path, pickle_name)
-            [ht_0,rho_0] = pickle.load(open(file_path,'rb'))
+            [ht_0,rho_0,rhs] = pickle.load(open(file_path,'rb'))
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n)+'.p'
             file_path = os.path.join(folder_path, pickle_name)
@@ -123,7 +123,7 @@ for index in range(len(spatial)) :
 
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n+1)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
-        [ht_p,rho_p] = pickle.load(open(file_path,'rb'))
+        [ht_p,rho_p,rhs] = pickle.load(open(file_path,'rb'))
         pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_morley at time step'+str(n+1)+'.p'
         file_path = os.path.join(folder_path, pickle_name)
         [vertex_val_p,betaKF_p] = pickle.load(open(file_path,'rb'))

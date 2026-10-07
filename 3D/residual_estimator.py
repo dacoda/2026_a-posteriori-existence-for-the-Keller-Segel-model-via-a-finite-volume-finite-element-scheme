@@ -1,10 +1,12 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# This script computes the a posteriori residual esitmator (29), computing all integrals exactly via a sufficiently exact quadrature rule.
-# Here, we ignore the round-off and algebraic errors, as we are only interested in the asymptotics of the residual estimator.
+# This script computes and stores the a posteriori residual esitmator (29) and other quantities needed to compute the full error estimators in Theorem 6.8.
+# The full estimator, including round-off errors and algebraic errors, will be assembled in compare_stability.py.
+# We compute all integrals exactly via a sufficiently exact quadrature rule.
+
 # Make sure you generated all necessary meshes and numerical approximations beforehand (see generate_meshes.py and FVFEscheme.py).
 
-# The quadrature points and weights, stored in triangle13.csv and tetrahedron15.csv, are taken from
+# The quadrature points and weights, stored in triangle10.csv, are taken from
 
 # Xiao, Hong and Gimbutas, Zydrunas. 
 # A numerical algorithm for the construction of efficient quadrature rules in two and higher dimensions, 
@@ -14,11 +16,10 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-
-import numpy as np
-import pickle
 import myfun as my
+import numpy as np
 import time
+import pickle
 import os
 
 
@@ -33,11 +34,18 @@ os.makedirs(folder_path, exist_ok=True)
 
 tic = time.time()
 
-test = 'manuf' # blowup or manuf
-method = 'expl' # expl or impl
+# Configuration used to generate values in Table 2:
+test = 'diff' #set test case
+method = 'expl' 
+spatial = [3,4,5,6,7]
+temporal = [10,20,40,60,100]
+TT = [0.00001,0.000016,0.000028,0.00004,0.00006]
 
-spatial = [2,3,4,5,6]
-temporal = [32,64,128,256,512]
+
+def initial_rho(x,y,z) :
+    val = np.cos(2*np.pi*x)*np.cos(2*np.pi*y)*np.cos(2*np.pi*z)+1
+    return val
+
 
 estimator = []
 hx = []
@@ -207,6 +215,7 @@ for index in range(len(spatial)) :
     cRprime = cTr*np.sqrt(12*(1+(cUSR**2*cP**2)*3/16)) 
 
     total_time_space = 0
+    morleyL3 = []
     list_res, list_dj, list_time, list_Cell_Linf, list_cj, list_FE = [],[],[],[],[],[]
     for n in range(Nt) :
 
@@ -286,6 +295,24 @@ for index in range(len(spatial)) :
         jump_grad_c = np.sum((plus - minus) * K_dual.face_normals, axis=1)
 
 
+
+        # --------------------------------- computable terms from stability estimats ------------------------------------
+        
+        if n==0:
+            exact_rho_array = initial_rho(pt_primal[...,0],pt_primal[...,1],pt_primal[...,2])
+            morley_primal, q0_primal = my.get_morley_val(K,pt_primal,bF_primal,bK_primal,vertex_val,betaKF)
+            diff_morleys = (exact_rho_array - morley_primal)**2
+            weighted_sum = np.matmul(diff_morleys,weights_tet)
+            initialL2 = (np.dot(K.area,weighted_sum))**(1/2)
+
+            pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_initL2.p'
+            file_path = os.path.join(folder_path, pickle_name)
+            pickle.dump(initialL2,open(file_path,'wb')) # store data
+
+        weighted_sum = np.matmul(np.abs(morley_primal_0)**3,weights_tet) # L3 norm
+        morleyL3.append((np.dot(K.area,weighted_sum))**(1/3))
+
+
         # --------------------------------------- A POSTERIORI ESTIMATOR ------------------------------------------------
 
 
@@ -306,8 +333,8 @@ for index in range(len(spatial)) :
             grad_morley_inter_diff = my.get_grad_morley_val(K,bF_inter,bK_inter,gF_inter,gK_inter,np.asarray(vertex_val_p) - np.asarray(vertex_val),np.asarray(betaKF_p) - np.asarray(betaKF))
 
             # Lemma 6.2 ...
-            diff_time2 = ((morley_primal_p - morley_primal_0)/ht - (aux_rho_p[:,None] - aux_rho_0[:,None])/ht)**2
-            weighted_sum = np.matmul(diff_time2,weights_tet)
+            diff_time1 = ((morley_primal_p - morley_primal_0)/ht - (aux_rho_p[:,None] - aux_rho_0[:,None])/ht)**2
+            weighted_sum = np.matmul(diff_time1,weights_tet)
             time1 = (np.dot(K.area,weighted_sum))**(1/2)
             time2 = 0
             # ... Lemma 6.2
@@ -371,7 +398,7 @@ for index in range(len(spatial)) :
 
             pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_rho at time step'+str(n-1)+'.p'
             file_path = os.path.join(folder_path, pickle_name)
-            [ht,aux_rho_m,rhs] = pickle.load(open(file_path,'rb')) # load data
+            [ht,aux_rho_m,rhx] = pickle.load(open(file_path,'rb')) # load data
 
             # Lemma 6.2 ...
             diff_time2 = ((aux_rho_p[:,None] - aux_rho_0[:,None])/ht - (aux_rho_0[:,None] - aux_rho_m[:,None])/ht)**2
@@ -425,32 +452,13 @@ for index in range(len(spatial)) :
         list_cj.append(cj)
         list_FE.append([pre_FE,FE])
 
-    ell0n_t1 = 1/2 - 1/(2*np.sqrt(3))
-    ell0n_t2 = 1/2 + 1/(2*np.sqrt(3)) 
-    ell1n_t1 = ell0n_t2
-    ell1n_t2 = ell0n_t1
+    data = [list_res,list_dj,list_time,list_Cell_Linf,list_cj,list_FE]
+    morleyL3 = np.asarray(morleyL3)
 
-    for n in range(Nt-1) :
-        if n == 0 :
-            theta_n1 = list_res[n][0] + list_dj[n] + list_time[n][0] + list_Cell_Linf[n] + list_cj[n] + ell0n_t1*(list_FE[n][0]*list_FE[n][1] + list_res[n][1]) 
-            theta_n2 = list_res[n][0] + list_dj[n] + list_time[n][0] + list_Cell_Linf[n] + list_cj[n] + ell0n_t2*(list_FE[n][0]*list_FE[n][1] + list_res[n][1])
-        else : 
-            theta_n1 = ell0n_t1*(list_res[n][1]+list_dj[n+1] + list_cj[n+1] + list_FE[n][0]*list_FE[n][1]) + ell1n_t1*(res0 +list_dj[n] + list_cj[n] + list_FE[n-1][0]*list_FE[n-1][1] + list_time[n][1]) + list_time[n][0] + list_Cell_Linf[n]
-            theta_n2 = ell0n_t2*(list_res[n][1]+list_dj[n+1] + list_cj[n+1] + list_FE[n][0]*list_FE[n][1]) + ell1n_t2*(res0 +list_dj[n] + list_cj[n] + list_FE[n-1][0]*list_FE[n-1][1] + list_time[n][1]) + list_time[n][0] + list_Cell_Linf[n]
-
-        total_time_space +=ht/2*(theta_n1**2 + theta_n2**2)
-
-    estimator.append(np.sqrt(total_time_space))
-
-    print('estimator :',estimator)
-
-    if fineness > spatial[0] : # generate estimated order of convergence for Table 2.
-        eoc = []
-        for i in range(fineness-spatial[0]) :
-            eoc.append((np.log((estimator[i])/(estimator[i+1])))/(np.log((hx[i])/(hx[i+1]))))
-
-        print('eoc: ',eoc)
-
-toc = time.time()
-print('time for eval: ', (toc-tic)/60)
-
+    pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_theta.p'
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(data,open(file_path,'wb')) # store data
+    
+    pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'_L3.p'
+    file_path = os.path.join(folder_path, pickle_name)
+    pickle.dump(morleyL3,open(file_path,'wb')) # store data

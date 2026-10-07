@@ -10,7 +10,6 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 # ------------------------------ MESH CLASSES ----------------------------------------------- 
-
 class primal_mesh :
     def __init__(self, fineness):
     
@@ -604,180 +603,6 @@ def circumcenter2D(el) :
 
 # ------------------------------------------------------------------------------------------
 
-# class dual_mesh :
-#     def __init__(self,K,F) :
-
-#         # Dual points = primal points + element circumcenters
-#         self.points = np.vstack((np.array(K.points), np.array(K.CC)))
-#         self.pt_dual_reduced = np.vstack((np.array(K.pt_reduced), np.array(K.CC)))
-#         self.pt_ident = np.array(K.pt_ident + [len(K.pt_reduced)+i for i in range(K.num)])
-
-#         self.simplices = []
-#         self.el = []
-#         self.primal_ind = []
-#         self.primal_area = []
-
-#         degenerate = 0
-#         index_Kdual = 0
-
-#         # Precompute midpoint indices for edges of a face
-#         edge_indices = np.array([[1,2],[0,2],[0,1]])
-#         for i in range(F.num):
-#             i1,j1 = F.indKs[i][0]
-#             i1,j1 = int(i1), int(j1)
-#             CCi1 = K.CC[i1]
-#             CCF = K.F.CC[i1][j1]
-                       
-#             if F.is_interior[i] : # either 1 (interior face) or 0 (boundary face), always 1 for periodic boundary
-
-#                 i2,j2 = F.indKs[i][1]
-#                 i2,j2 = int(i2), int(j2)
-#                 CCi2 = K.CC[i2]     
-
-#                 for k in range(3):  # three dual elements per face (one per edge)
-#                     e0,e1 = K.F.el[i1][j1][edge_indices[k]]
-#                     midk = 0.5*(e0+e1)
-#                     pt = get_pt(CCi2, midk) 
-
-#                     el = np.array([e0,e1,CCi1,pt])
-#                     i_el = [K.F.simplices[i1][j1][edge_indices[k][0]],
-#                             K.F.simplices[i1][j1][edge_indices[k][1]],
-#                             len(K.points)+i1, len(K.points)+i2]
-
-#                     if check_coplanar(el) or np.linalg.norm(CCi1-CCi2)<1e-8:
-#                         degenerate += 1
-#                         continue
-
-#                     el, i_el = orientation(el,i_el)
-     
-#                     self.el.append(el)
-#                     self.simplices.append(i_el)
-
-#                     # Compute area and volumes
-#                     S = np.cross(el[1]-el[0], CCF-el[0])
-#                     area1 = np.linalg.norm(S)/2
-#                     K.F.dual[i1][j1][k] = index_Kdual
-#                     K.F.dual_area[i1][j1][k] = area1
-#                     K.F.dual[i2][j2][k] = index_Kdual
-#                     K.F.dual_area[i2][j2][k] = area1
-
-#                     vol1 = np.abs(np.dot(np.cross(el[1]-el[0], el[2]-el[0]), CCF-el[0]))/6
-#                     vol2 = np.abs(np.dot(np.cross(el[1]-el[0], el[3]-el[0]), CCF-el[0]))/6
-
-#                     self.primal_ind.append([i1,i2])
-#                     self.primal_area.append([vol1,vol2])
-
-#                     index_Kdual += 1
-#             else:
-#                 print("Warning: periodic boundary dual mesh fails!")
-        
-     
-#         if degenerate > 0 :
-#             print("Warning: The dual mesh contains %i degenerate element(s)." %degenerate)
-#             self.quality = degenerate
-#         else :
-#             print("The dual mesh DOES NOT contain degenerate elements.")
-#             self.quality = 0
-
-#         self.num = len(self.el)
-#         self.el = np.asarray(self.el)
-#         self.simplices = np.asarray(self.simplices)
-#         self.primal_ind = np.asarray(self.primal_ind)
-#         self.primal_area = np.asarray(self.primal_area)
-
-#         # Compute diameters
-#         self.diam = np.linalg.norm(self.el[:,0]-self.el[:,1], axis=1)
-#         self.gradients = []
-#         self.vol = []
-
-#         self.neighbors = np.asarray(compute_face_neighbors(self.el))
-
-#         indexF = 0
-#         # Use dictionary for fast face lookup
-#         face_dict = {}
-#         aux_el = self.el
-
-#         indices = np.array([
-#         [0, 1, 2],
-#         [0, 1, 3],
-#         [0, 2, 3],
-#         [1, 2, 3]
-#                 ])
-        
-#         max_faces = 2*self.num
-
-#         # Preallocate arrays
-#         aux_el = np.zeros((max_faces, 3, 3))
-#         aux_indKs = -np.ones((max_faces, 2), dtype=int)
-
-#         for i in range(self.num):
-#             neighbors = self.neighbors[i]
-#             for j in range(4):
-#                 ni = neighbors[j]
-#                 face_key = tuple(sorted([i, ni]))  # unique key for face
-
-#                 if ni >= 0:  # interior face
-#                     if face_key in face_dict:
-#                         idx = face_dict[face_key]
-#                         # Replace face if on right side
-#                         if aux_el[idx][0,0] > 0.999999 and aux_el[idx][1,0] > 0.999999 and aux_el[idx][2,0] > 0.999999:
-#                             # Swap previous with current
-#                             aux_el[idx] =  self.el[i][indices[j]]
-#                             aux_indKs[idx][1] = aux_indKs[idx][0].copy()
-#                             aux_indKs[idx][0] = i
-#                         else:
-#                             aux_indKs[idx][1] = i
-#                     else:
-#                         # New interior face
-#                         aux_el[indexF] = self.el[i][indices[j]]
-#                         aux_indKs[indexF][0] = i
-#                         face_dict[face_key] = indexF
-#                         indexF += 1
-#                 else:  # boundary face (periodic)
-#                     aux_el[indexF] =  self.el[i][indices[j]]
-#                     aux_indKs[indexF][0] = i
-#                     face_dict[face_key] = indexF
-#                     indexF += 1
-#                     print("Warning: periodic boundary face encountered")
-
-#         self.face_el = np.asarray(aux_el[:indexF])
-#         self.face_to_tet = np.asarray(aux_indKs[:indexF])
-  
-#         v0 = self.face_el[:,0]
-#         v1 = self.face_el[:,1]
-#         v2 = self.face_el[:,2]
-
-#         cross = np.cross(v1 - v0, v2 - v0)   # shape (N_faces, 3)
-
-#         # face areas: 1/2 * |cross|
-#         face_areas = 0.5 * np.linalg.norm(cross, axis=1)
-
-#         # Unit normals
-#         face_normals = cross / np.linalg.norm(cross, axis=1, keepdims=True)
-
-#         # Face centers
-#         face_centers = (v0 + v1 + v2)/3
-
-#         # Tet centers of + tetrahedra
-#         tet_centers = np.mean(self.points[self.simplices], axis=1)
-#         plus_centers = tet_centers[self.face_to_tet[:,0]]
-
-#         # Flip normals to point from + tet to − tet
-#         flip = np.sum(face_normals * (face_centers - plus_centers), axis=1) < 0
-#         face_normals[flip] *= -1
-
-#         # Edge lengths per face
-#         e01 = np.linalg.norm(v1 - v0, axis=1)
-#         e12 = np.linalg.norm(v2 - v1, axis=1)
-#         e20 = np.linalg.norm(v0 - v2, axis=1)
-
-#         # Diameter = max edge length of triangular face
-#         face_diameter = np.maximum.reduce([e01, e12, e20])
-
-#         self.face_normals = face_normals
-#         self.face_areas = 0.5 * face_areas
-#         self.face_diam = face_diameter
-#         self.num_faces = len(face_areas)
 
 class dual_mesh :
     def __init__(self,K,F) :
@@ -1090,7 +915,6 @@ def compute_face_neighbors(el):
             neighbors[t1, f1] = t0
 
     return neighbors
-
 
 
 # ------------------------------------------------------------------------------------------
@@ -1541,9 +1365,7 @@ def assemble_FE_matrix(K_dual): # see Fig. 3.14. in Bartels2015
     K_dual.grads = np.array(gradients)
     K_dual.vol = np.array(volumes)
 
-    return sparseA
-
-
+    return [sparseA,sparseA_reac]
 
 
 def assemble_FV_matrix(ht,K,eps) :
@@ -1589,7 +1411,7 @@ def assemble_FV_matrix(ht,K,eps) :
     return sparseA
 
 
-def getc_FE(rhoFV,g,K_dual,sparseA) :
+def getc_FE(rhoFV,c_old,g,K_dual,sparseA) :
 
     b = np.zeros(len(K_dual.pt_dual_reduced))
 
@@ -1609,8 +1431,8 @@ def getc_FE(rhoFV,g,K_dual,sparseA) :
                 print('Warning: FE does not work correctly with periodic boundary')
                 b[K_dual.pt_ident[K_dual.simplices[i][m]]] += 1/4*vol_K*(g(mid_K) + rhoFV[i1]) # using midpoint rule on g and exact integration of rhoFV; 1/4 = 1/(d+1)
 
-    c, content = sp.sparse.linalg.cg(sparseA,b,tol=10**-12) # c_h^n(x) = sum_i (c_i*hat_i(x))
-    return c
+    c, content = sp.sparse.linalg.cg(sparseA,b,x0 = c_old,tol=1e-5) # c_h^n(x) = sum_i (c_i*hat_i(x))
+    return c,b
 
 def get_gradc(K_dual,c) :
     
@@ -1680,9 +1502,9 @@ def finitevolumescheme_rho_expl(u_old,ht,K,vv,f,sparseA) : # explicit euler for 
         rhs.append(val_rhs) # get vector for right-hand-side of linear system of equations
 
     # creating sparse matrix
-    uh, content = sp.sparse.linalg.gmres(sparseA, rhs, tol=10**-12) # iterative solver
+    uh, content = sp.sparse.linalg.cg(sparseA, rhs,x0=u_old,tol=1e-5) # iterative solver
 
-    return uh
+    return uh, rhs
 
 def avrgK(K,areaK,g) :
 
@@ -2141,10 +1963,10 @@ def get_morley_val(K,pt,bF,bK,vertex_val,betaKF) :
         hx = np.einsum('tij,tkpj->tkpi', np.array(K.hat), pt_h)
         # Dot with vertex values
         vv = vertex_val[K.simplices]  # (N_tet, 4)
-        q0 = np.einsum('ti,tkpi->tkp', vv, hx)  # (N_tet, 12, N_pt)
+        q0 = np.einsum('ti,tkpi->tkp', vv, hx)  # (N_tet, 13, N_pt)
         # Compute aux with bubble functions
-        b_vec = bF * bK[..., None]           # (N_tet, 12, N_pt, 4)
-        aux = np.einsum('ti,tkpi->tkp', betaKF, b_vec)  # (N_tet, 12, N_pt)
+        b_vec = bF * bK[..., None]           # (N_tet, 13, N_pt, 4)
+        aux = np.einsum('ti,tkpi->tkp', betaKF, b_vec)  # (N_tet, 13, N_pt)
 
     elif pt.ndim == 5 :
         # FACES INTERSECTED
@@ -2173,7 +1995,7 @@ def get_morley_val_face(K, X, vertex_val, bF, bK, betaKF, inverse_map):
         if len(points_idx) == 0:
             continue
 
-        pt = X[points_idx]                       # (num_points_in_m, 33, 3)
+        pt = X[points_idx]                       # (num_points_in_m, num_quad_points, 3)
 
         # Homogeneous coordinates
         pt_h = np.concatenate([pt, np.ones((*pt.shape[:2], 1))], axis=-1)  # (num_points_in_m, 33, 4)
@@ -2224,8 +2046,8 @@ def get_grad_morley_val(K,bF,bK,gF,gK,vertex_val,betaKF) :
 
     return grad_q0 + val
 
-def get_grad_morley_val_primal(K, bK, gK, bF, vertex_val, betaKF):
-# Compute Morley gradient contributions assuming:
+def get_grad_morley_val_primal(K, bK, gK, bF, gF, vertex_val, betaKF):
+# Compute Morley gradient contributions:
 
     hat_mat = np.array(K.hat)[:,:,:3].transpose(0,2,1)  # (N_tet, 3, 4)
     vv = vertex_val[K.simplices]         # (N_tet, 4)
@@ -2241,9 +2063,7 @@ def get_grad_morley_val_primal(K, bK, gK, bF, vertex_val, betaKF):
 
     # Compute contribution from gK * bF
     # gF = 0, so first term drops
-    # gK: (N_tet, N_pt, 3), bF: (N_tet, N_pt, 4)
-    # Expand dims for broadcasting: gK[..., None] * bF[..., :, None]
-    b_mat = gK[..., None,:] * bF[..., :, None]  # (N_tet, N_pt, 4, 3)
+    b_mat = gK[..., None, :] * bF[..., :, None] + gF[...] * bK[..., None, None] 
 
     # Contract with betaKF (N_tet, 4) over axis 2
     val = np.einsum('ti,tpij->tpj', betaKF, b_mat)  # (N_tet, N_pt, 3)
@@ -2300,7 +2120,6 @@ def get_lap_morley_val(bF,bK,gF,gK,lapF,lapK,betaKF) :
     val = np.einsum('ti,tkni->tkn', betaKF, b_vec)  # (N_tet, 12, N_pt)
 
     return val
-
 
 
 # -------------------------------------- A POSTERIORI ERROR ESTIMATOR --------------------------------------------
@@ -2366,4 +2185,136 @@ def get_conv_terms(K_inter,vv,rho,morley_inter_faces) :
         val[mask_dual_pos] = jump_c[:,np.newaxis] * morley_pos
 
     return val
+
+
+def assemble_FE_matrix_q(K,K_el):
+    # see Fig. 3.14. in Bartels2015
+
+    # u = np.zeros(len(points_dual))
+    # tu_D = np.zeros(len(points_dual))
+    # b = np.zeros(len(points_dual))
+
+    iter = 0
+    iter_max = 16*K.num # 16 = (3+1)^2 = (d+1)^2
+
+    I = np.zeros(iter_max)
+    J = np.zeros(iter_max)
+    X_diff = np.zeros(iter_max)
+    X_reac = np.zeros(iter_max)
+
+    m_loc = 1/20*(np.ones([4,4]) + np.array([[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]])) # see Figu. 3.23 in Bartels Numerics for PDEs, 20 = 4*5 = (3+1)*(3+2) = (d+1)*(d+2)
+
+    gradients = []
+    volumes = []
+    for i in range(K.num) :
+
+        X_K = np.array([[1, 1, 1, 1],[K_el[i][0][0], K_el[i][1][0], K_el[i][2][0], K_el[i][3][0]],[K_el[i][0][1], K_el[i][1][1], K_el[i][2][1], K_el[i][3][1]], [K_el[i][0][2], K_el[i][1][2], K_el[i][2][2], K_el[i][3][2]]])
+        rhs = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]])
+        grads_K = np.linalg.solve(X_K,rhs)
+        gradients.append(grads_K)
+        vol_K = np.linalg.det(X_K)/6 # 6 = 3*2*1 = 3! = d!
+        volumes.append(vol_K)
+        if vol_K < 0 :
+            print('Warning: FE scheme works with negative volumes.')
+
+        for m in [0,1,2,3] : # go through vertices of tet
+            #b[tri_dual.simplices[i][m]] += 1/(d+1)* vol_K * f(mid_K) # 1/(d+1) * midpoint rule
+            for n in [0,1,2,3] : # go through vertices of tet
+                I[iter] = K.pt_ident[K.simplices[i][m]] # identify_points
+                J[iter] = K.pt_ident[K.simplices[i][n]] # identify_points
+                X_diff[iter] = vol_K*np.dot(grads_K[m],grads_K[n])
+                X_reac[iter] = vol_K*m_loc[m][n]
+                iter += 1
+
+    sparseA_diff = csc_matrix((X_diff[:iter], (I[:iter], J[:iter])), shape=(len(K.pt_reduced),len(K.pt_reduced)))
+    sparseA_reac = csc_matrix((X_reac[:iter], (I[:iter], J[:iter])), shape=(len(K.pt_reduced),len(K.pt_reduced)))
+
+    sparseA = sparseA_diff + sparseA_reac
+
+    return [sparseA,gradients,sparseA_reac]
+
+
+def getq_FE(K,sparseA,grad_morley,q_old) :
+
+    b = np.zeros(len(K.pt_reduced))
+
+    for i in range(K.num) :
+        vol_K = K.area[i]
+
+        for m in [0,1,2,3] : #  "m = 1:(d+1)"
+            
+            b[K.pt_ident[K.simplices[i][m]]] += 1/4*vol_K*grad_morley[i] # exact quadrature
+           
+    q, content = sp.sparse.linalg.cg(sparseA,b,x0=q_old,tol=1e-05)
+
+    return q,b
+
+
+def get_gradq(K, grads, q):
+    pts = np.asarray(K.pt_ident)[np.asarray(K.simplices,dtype=int)]
+    return np.einsum("nji,nj->ni", grads, q[pts])
+
+
+
+# --------------------------------------- COMPARE STABILITY ----------------------------------------------
+
+from scipy.optimize import brentq
+
+
+def first_admissible_delta(func, dfunc, xtol=1e-12):
+    """
+    Find the first root delta > 1 and a nearby point satisfying
+    func(delta) < 0.
+
+    Assumes func is strictly convex for delta > 0.
+    """
+
+    # Start just above 1
+    x1 = np.nextafter(1.0, np.inf)
+
+    # Already admissible
+    if func(x1) < 0:
+        return x1, x1
+
+    if dfunc(x1) >= 0:
+        print('No admissible delta > 1 exists')
+        return x1,x1
+
+    # Find a bracket for the unique minimum:
+    # dfunc(a) < 0, dfunc(b) > 0
+    a = x1
+    b = 1.0 + 1e-6
+
+    while dfunc(b) <= 0:
+        b *= 2.0
+
+        if b > 1e12:
+            raise RuntimeError("Could not locate the minimum.")
+
+    # Unique minimizer
+    delta_min = brentq(dfunc,a,b,xtol=xtol,rtol=4*np.finfo(float).eps)
+
+    f_min = func(delta_min)
+
+    # No negative region exists
+    if f_min >= 0:
+        print(
+            f"No admissible delta > 1 exists. "
+            f"Minimum at delta={delta_min:.16e} is "
+            f"func={f_min:.16e}."
+        )
+        return [delta_min,delta_min]
+
+    # First root, i.e. left boundary of the admissible interval
+    delta_boundary = brentq(func,x1,delta_min,xtol=xtol,rtol=4*np.finfo(float).eps)
+
+    # Strict inequality: move one representable float to the right
+    delta = delta_boundary+2*xtol # np.nextafter(delta_boundary, np.inf)
+
+    # Sanity check
+    if func(delta) >= 0:
+        print("Could not obtain func(delta) < 0 immediately after the root.")
+
+    return delta_boundary, delta
+ 
 

@@ -8,8 +8,8 @@ The code was developed with Python 3.8.10 and depends on numpy 1.26.4 and scipy 
 1) Clone this git repository into your favorite directory. When running, the code will automatically create a subdirectory `'data'`, where all auxiliary files that will be produced on the way, will be stored.
 2) Generate well-centered triangular meshes for different mesh sizes, see different configurations in the code for Table 1 and Table 3, using the file `generate_meshes.py`. 
 3) Use Algorithm 4.3, implemented in `FVFEscheme.py`, to obtain numerical approximations and the respective interpolation of Morley-type to the solution to the Keller-Segel system.
-4) a) To reproduce the values in Table 1, compute the a posteriori residual estimator (27), see Theorem 6.8, using `residual_estimator.py`, compute the pointswise a posteriori error estimator derived in Appendix A.1 using `Linf_estimator.py`. Then, use `compare_stability.py` to compute the maximal time horizon in which the conditions in i) and ii) of Theorem 6.8 are satisfied, i.e. in which our a posteriori error estimates are rigorously available.
-b) To reproduce the values in Table 3, compute the 'exact error' measured in the L^∞(0,T;L²(Ω))- and L²(0,T;H¹(Ω))-norm and corresponding EOCs using `manuf_error.py` and compute the a posteriori residual estimator (27), see Theorem 6.8, and corresponding EOCs using `error_estimator.py`.
+4) a) To reproduce the values in Table 1 and Table 3, compute the a posteriori residual estimator (27), see Theorem 6.8, using `residual_estimator.py`, compute the pointswise a posteriori error estimator derived in Appendix A.1 using `Linf_estimator.py`. Then, use `compare_stability.py` to compute the maximal time horizon in which the conditions in i) and ii) of Theorem 6.8 are satisfied, i.e. in which our a posteriori error estimates are rigorously available.
+b) To reproduce the values in Table 4, compute the 'exact error' measured in the L^∞(0,T;L²(Ω))- and L²(0,T;H¹(Ω))-norm and corresponding EOCs using `manuf_error.py` and compute the a posteriori residual estimator (29), see Theorem 6.8, and corresponding EOCs using `error_estimator.py`.
 
 # Notes
 

@@ -20,16 +20,23 @@ tic = time.time()
 # SETTINGS FOR SCHEME
 nodal_avrg_choice = 'least-squares'  # choose nodal averaging, see Remark 5.2
 
-# ------- CHOOSE OINE OF THE FOLLOWING CONFIGURATIONS ----------------
+# ------- CHOOSE ONE OF THE FOLLOWING CONFIGURATIONS ----------------
 
 # Configuration used to generate values in Table 1:
 test = 'diff' #set test case
 method = 'expl' 
-spatial = [4,5,6,7]
-temporal = [25,50,200,800]
-TT = [0.0005,0.0005,0.001,0.001]
+spatial = [5,6,7]
+temporal = [18,80,100]
+TT = [0.006,0.02,0.03]
 
 # # Configuration used to generate values in Table 3:
+# test = 'diff' #set test case
+# method = 'expl' 
+# spatial = [6,6,6,6]
+# temporal = [20,80,320,1280]
+# TT = [0.02,0.02,0.02,0.02]
+
+# # Configuration used to generate values in Table 4:
 # test = 'manuf'
 # method = 'expl'
 # spatial = [1,2,3,4,5]
@@ -46,6 +53,7 @@ for index in range(len(spatial)) :
     pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
     file_path = os.path.join(folder_path, pickle_name)
     [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
+
         
     if test == 'diff' : 
     # DIFFUSION DOMINATED REGIME
@@ -131,6 +139,7 @@ for index in range(len(spatial)) :
     print('number primal points ', len(K.points))
     print('number dual elements ', K_dual.num)
     print('number dual points ', len(K_dual.points))
+    print('step size', ht)
 
     # pre-allocate variables
     rho = np.zeros([maxiter+1,K.num])
@@ -190,7 +199,7 @@ for index in range(len(spatial)) :
     toc = time.time()
 
     # calculate c0 with rho0 as right-hand side 
-    c0, b = my.getc_FE(rho[0][:],lambda x : g(x,0),K_dual,A,M_FE) 
+    c0, b = my.getc_FE(rho[0][:],None,lambda x : g(x,0),K_dual,A,M_FE) 
     cc[0][:] = c0
     elapsed = time.time() - toc
     print('initial chemical concentration computed via FE scheme in ', "%.2f" % round(elapsed/60, 2), 'minutes.')
@@ -238,7 +247,7 @@ for index in range(len(spatial)) :
         # GET COEFFICIENTS FOR MORLEY/LINEAR INTERPOLATION :
         FKED = my.getinterpolationRHS(K,rho[n+1][:]) 
         vertex_val = my.getq0(K,rho[n+1][:],nodal_avrg_choice) # linear interpolation
-        [betaKF,numerKF,denomKF] = my.getbetaE(K,vertex_val,FKED) # Jacobi_cdotn is first derivative of componentwise linear interpolation of grad c
+        [betaKF,numerKF,denomKF] = my.getbetaE(K,vertex_val,FKED) 
 
         # SAVE MORLEY RECONSTRUCTION OF RHO 
         data = []
@@ -254,7 +263,7 @@ for index in range(len(spatial)) :
     
         toc = time.time()
         # GET CHEMICAL DENISTY
-        cn,b = my.getc_FE(rho[n+1][:],lambda x : g(x,(n+1)*ht),K_dual,A,M_FE) 
+        cn,b = my.getc_FE(rho[n+1][:],cc[n][:],lambda x : g(x,(n+1)*ht),K_dual,A,M_FE) 
         cc[n+1][:] = cn
         elapsed = time.time() - toc
         print('Chemical concentration approximated via FE scheme in ', "%.2f" % round(elapsed/60, 2), 'minutes.')

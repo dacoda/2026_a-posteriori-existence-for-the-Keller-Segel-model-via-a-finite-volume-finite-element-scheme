@@ -30,22 +30,15 @@ folder_name = "data"
 folder_path = os.path.join(current_path, folder_name)
 os.makedirs(folder_path, exist_ok=True)
 
-
-# Configuration used to generate values in Table 1:
+# Configuration used to generate values in Table 2:
 test = 'diff' #set test case
 method = 'expl' 
-spatial = [5,6,7]
-temporal = [18,80,100]
-TT = [0.006,0.02,0.03]
-
-# # Configuration used to generate values in Table 3:
-# test = 'diff' #set test case
-# method = 'expl' 
-# spatial = [6,6,6,6]
-# temporal = [20,80,320,1280]
-# TT = [0.02,0.02,0.02,0.02]
+spatial = [3,4,5,6,7]
+temporal = [10,20,40,60,100]
+TT = [0.00001,0.000016,0.000028,0.00004,0.00006]
 
 tic = time.time()
+
 for index in range(len(spatial)) :
 
     fineness = spatial[index] # number of refinements of mesh before calculating numerical solution
@@ -55,13 +48,14 @@ for index in range(len(spatial)) :
     print('fineness: ',fineness)
     print('Nt: ',Nt)
 
-    pickle_name = 'MESH_2D_UNITSQUARE_fineness'+str(fineness)+'.p'
+    pickle_name = 'MESH_3D_UNITCUBE_fineness'+str(fineness)+'.p'
     file_path = os.path.join(folder_path, pickle_name)
     [K,F,K_dual,K_inter] = pickle.load(open(file_path,'rb')) # load mesh
 
+    K_el = K.points[K.simplices]
     for i in range(K.num) :
-        _, K.simplices[i] = my.orientation(K.el[i], K.simplices[i])
-    K.el = K.points[K.simplices]
+        _, K.simplices[i] = my.orientation(K_el[i], K.simplices[i])
+    K_el = K.points[K.simplices]
 
     toc = time.time()
 
@@ -89,20 +83,21 @@ for index in range(len(spatial)) :
     elapsed = time.time() - toc
     print('numsol data loaded in ',"%.2f" % round(elapsed/60, 2), 'minutes.')
 
-    data = np.loadtxt("triangle6.csv", delimiter=",", skiprows=1)
+    data = np.loadtxt("tetrahedron8.csv", delimiter=",", skiprows=1)
     weights_tri = data[:,-1]
-    xi_ref = np.column_stack((data[:,1],data[:,2])) # physical coordinates
+    xi_ref = np.column_stack((data[:,1],data[:,2],data[:,3])) # physical coordinates
 
-    pt_primal, J_primal, v0_primal, grads_primal = my.tritrafo_quad_tri(K.points[K.simplices], xi_ref) # shape (K.num,len(xi),3)
+    pt_primal, J_primal, v0_primal, grads_primal = my.tritrafo_quad_tet(K.points[K.simplices], xi_ref) # shape (K.num,len(xi),3)
 
-    indices = [[1,2],[0,2],[0,1]]
+    indices = [[1,2,3],[0,2,3],[0,1,3],[0,1,2]]
+
     L_primal = my.barycentric_coords(pt_primal, J_primal, v0_primal)
-    bF = my.bubble_E(L_primal, indices)
+    bF = my.bubble_F(L_primal, indices)
     bK  = my.bubble_K(L_primal)
     gK  = my.grad_bubble_K(L_primal, grads_primal)
-    gF = my.grad_bubble_E(L_primal, grads_primal, indices)
+    gF = my.grad_bubble_F(L_primal, grads_primal, indices)
 
-    [A,grads,M] = my.assemble_FE_matrix_q(K)
+    [A,grads,M] = my.assemble_FE_matrix_q(K,K_el)
 
     qq_time = []
     grad_qq_time = []
@@ -110,16 +105,17 @@ for index in range(len(spatial)) :
     for n in range(maxiter) : 
         toc = time.time()
 
-        if n % 10 == 0:
-            print('time step: ',n)
+        # if n % 10 == 0:
+        print('time step: ',n)
 
-        aux_grad_morley = my.get_grad_morley_val_primal(K,bK,gK,bF,gF,vertex_val[n],betaKE[n])
+        [grad_q0,val] = my.get_grad_morley_val_primal(K,bK,gK,bF,gF,vertex_val[n],betaKE[n])
+        aux_grad_morley = grad_q0 + val
 
         qq = []
         bb = []
         grad_qq = []
-        q_old = np.zeros([len(K.pt_reduced),2])
-        for d in range(2) : # go through components (2D)
+        q_old = np.zeros([len(K.pt_reduced),3])
+        for d in range(3) : # go through components (2D)
 
             grad_morley = np.einsum('tij,i->tj',aux_grad_morley,weights_tri)[:,d]
             q,b = my.getq_FE(K,A,grad_morley,q_old[:,d])
@@ -147,14 +143,17 @@ for index in range(len(spatial)) :
     elapsed = time.time() - tic
     print('total FE sol computed in ',"%.2f" % round(elapsed/60, 2), 'minutes.')
 
-    cTr = 3.389830508474577 # L1
 
-    cSZ01 = 1.1756798131338135
-    cSZ11 = 5.4634146341463445
-    cSZ12 = 5.4634146341463445
-    cSZ02 = 1.3059943479326506
+    # -------------------------------- Linf estimator -------------------------------------
 
-    C_ol = 5
+    cTr = 4.373213925301394 # L1
+
+    cSZ01 = 1.1481812160876688
+    cSZ11 = 8
+    cSZ12 = 9.771236166739577
+    cSZ02 = 1.3843005945553915
+
+    C_ol = 12
 
     hmin = np.min(K.diam)
     C4h = (np.log(1/(np.sqrt(2)*hmin)) + hmin*sp.special.kv(1,hmin) - 1/np.sqrt(2)*sp.special.kv(1,1/np.sqrt(2))) + 11
@@ -166,7 +165,7 @@ for index in range(len(spatial)) :
             print('esti time step: ',n)
 
         eta_comp = 0
-        for d in range(2):
+        for d in range(3):
 
             eta_K = []
             for i in range(K.num) : 
@@ -178,19 +177,19 @@ for index in range(len(spatial)) :
                 beta = C_ol*cTr*(cSZ12+cSZ02)*C4h*hK + (cSZ11+cSZ01)*C3h
 
                 gradq0 = 0
-                for j in range(3) :
+                for j in range(4) :
                     pt_i = K.simplices[i][j]
-                    gradq0 += vertex_val[n][pt_i]*np.array([K.hat[i][j][0],K.hat[i][j][1]])
+                    gradq0 += vertex_val[n][pt_i]*np.array([K.hat[i][j][0],K.hat[i][j][1],K.hat[i][j][2]],K.hat[i][j][3])
 
                 # || q_h - f ||_Linf
                 res = np.max(np.abs([qq_time[n][K.pt_ident[K.simplices[i][0]]][d]-gradq0[d],qq_time[n][K.pt_ident[K.simplices[i][1]]][d]-gradq0[d],qq_time[n][K.pt_ident[K.simplices[i][2]]][d]-gradq0[d]]))
-                bubble_max = np.max(np.abs(betaKE[n][i]))/K.diam[i]*135/2
+                bubble_max = np.max(np.abs(betaKE[n][i]))/K.diam[i]*135/2 # TO DO
                 neighs = K.neighbors[i]
 
                 old = -1
                 for k in range(3) :
                     j = neighs[k]
-                    jump_q = np.max([old,np.abs(np.dot(grad_qq_time[n][d][i] - grad_qq_time[n][d][j],K.E.n[i][k]))])
+                    jump_q = np.max([old,np.abs(np.dot(grad_qq_time[n][d][i] - grad_qq_time[n][d][j],K.F.n[i][k]))])
                     old = jump_q
             
                 eta_K.append(alpha*(bubble_max+res) + beta*jump_q)
@@ -201,7 +200,7 @@ for index in range(len(spatial)) :
 
     eta_inf_time = np.asarray(eta_inf_time)
 
-    qmax = np.sqrt(np.max(np.asarray(qq_time),axis=1)[:,0]**2 + np.max(np.asarray(qq_time),axis=1)[:,1]**2)
+    qmax = np.sqrt(np.max(np.asarray(qq_time),axis=1)[:,0]**2 + np.max(np.asarray(qq_time),axis=1)[:,1]**2 + np.max(np.asarray(qq_time),axis=1)[:,2]**2)
 
     pickle_name = method+test+'_fineness'+str(fineness)+'_Nt'+str(Nt)+'qhinfty.p'
     file_path = os.path.join(folder_path, pickle_name)
@@ -209,3 +208,4 @@ for index in range(len(spatial)) :
 
     elapsed = time.time() - tic
     print('This took ',"%.2f" % round(elapsed/60, 2), 'minutes.')
+
